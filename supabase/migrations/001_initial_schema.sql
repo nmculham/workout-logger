@@ -53,12 +53,12 @@ ALTER TABLE sets ENABLE ROW LEVEL SECURITY;
 -- Policies
 CREATE POLICY "Global exercises readable by all" ON exercises FOR SELECT USING (is_global = true);
 CREATE POLICY "Own exercises CRUD" ON exercises FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "Own workouts CRUD" ON workouts FOR ALL USING (auth.uid()::text = user_id);
+CREATE POLICY "Own workouts CRUD" ON workouts FOR ALL USING (auth.uid() = user_id);
 CREATE POLICY "Own workout_exercises CRUD" ON workout_exercises FOR ALL
-  USING (workout_id IN (SELECT id FROM workouts WHERE user_id = auth.uid()::text));
+  USING (workout_id IN (SELECT id FROM workouts WHERE user_id = auth.uid()));
 CREATE POLICY "Own sets CRUD" ON sets FOR ALL
   USING (workout_exercise_id IN (
     SELECT we.id FROM workout_exercises we
     JOIN workouts w ON w.id = we.workout_id
-    WHERE w.user_id = auth.uid()::text
+    WHERE w.user_id = auth.uid()
   ));

@@ -6,3 +6,6 @@ build/
 *.log
 data/
 .claude/
+client/android/
+client/ios/
+supabase/.temp/

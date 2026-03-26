@@ -6,7 +6,10 @@
     "dev": "concurrently \"npm run dev --workspace=server\" \"npm run dev --workspace=client\"",
     "build": "npm run build --workspace=server && npm run build --workspace=client",
     "server": "npm run dev --workspace=server",
-    "client": "npm run dev --workspace=client"
+    "client": "npm run dev --workspace=client",
+    "cap:sync": "npm run cap:sync --workspace=client",
+    "cap:android": "npm run cap:android --workspace=client",
+    "cap:ios": "npm run cap:ios --workspace=client"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
