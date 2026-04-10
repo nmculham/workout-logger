@@ -7,16 +7,20 @@ interface Props {
   onClose: () => void;
 }
 
+const MUSCLE_GROUPS = ['Legs', 'Back', 'Chest', 'Shoulders', 'Arms', 'Core', 'Other'];
+
 export default function ExercisePicker({ userId, onSelect, onClose }: Props) {
   const [exercises, setExercises] = useState<any[]>([]);
   const [filter, setFilter] = useState('');
+  const [muscleGroup, setMuscleGroup] = useState('');
 
   useEffect(() => {
     api.getExercises(userId).then(setExercises);
   }, [userId]);
 
   const filtered = exercises.filter(e =>
-    e.name.toLowerCase().includes(filter.toLowerCase())
+    e.name.toLowerCase().includes(filter.toLowerCase()) &&
+    (muscleGroup === '' || e.muscle_group === muscleGroup)
   );
 
   return (
@@ -37,8 +41,18 @@ export default function ExercisePicker({ userId, onSelect, onClose }: Props) {
           onChange={e => setFilter(e.target.value)}
           placeholder="Search..."
           autoFocus
-          style={{ marginBottom: 12 }}
+          style={{ marginBottom: 10 }}
         />
+        <select
+          value={muscleGroup}
+          onChange={e => setMuscleGroup(e.target.value)}
+          style={{ marginBottom: 12 }}
+        >
+          <option value="">All muscle groups</option>
+          {MUSCLE_GROUPS.map(g => (
+            <option key={g} value={g}>{g}</option>
+          ))}
+        </select>
         <div style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
           {filtered.map(e => (
             <button

@@ -29,6 +29,6 @@ export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '', {
     storage: makeStorage() as any,
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: false,
+    detectSessionInUrl: !Capacitor.isNativePlatform(),
   },
 });
