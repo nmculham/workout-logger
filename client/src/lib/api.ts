@@ -185,6 +185,77 @@ export const api = {
     return req<any>(`/sets/${id}`, { method: 'DELETE' });
   },
 
+  // Templates
+  getTemplates: async (userId: string): Promise<any[]> => {
+    if (isNative) return nq(`
+      SELECT wt.*,
+        COUNT(DISTINCT te.id) as exercise_count,
+        GROUP_CONCAT(e.name, ', ') as exercise_names
+      FROM workout_templates wt
+      LEFT JOIN template_exercises te ON te.template_id = wt.id
+      LEFT JOIN exercises e ON e.id = te.exercise_id
+      WHERE wt.user_id = ?
+      GROUP BY wt.id
+      ORDER BY wt.created_at DESC
+    `, [userId]);
+    return req<any[]>(`/templates?user_id=${userId}`);
+  },
+
+  saveAsTemplate: async (workoutId: string, name: string): Promise<{ id: string }> => {
+    if (isNative) {
+      const workout = await nq('SELECT * FROM workouts WHERE id = ?', [workoutId]);
+      if (!workout.length) throw new Error('Workout not found');
+      const templateId = genId();
+      await nr('INSERT INTO workout_templates (id, user_id, name, notes) VALUES (?, ?, ?, ?)',
+        [templateId, workout[0].user_id, name, workout[0].notes || null]);
+      const wes = await nq('SELECT * FROM workout_exercises WHERE workout_id = ? ORDER BY "order"', [workoutId]);
+      for (const we of wes) {
+        const teId = genId();
+        await nr('INSERT INTO template_exercises (id, template_id, exercise_id, "order") VALUES (?, ?, ?, ?)',
+          [teId, templateId, we.exercise_id, we.order]);
+        const sets = await nq('SELECT * FROM sets WHERE workout_exercise_id = ? ORDER BY set_number', [we.id]);
+        for (const s of sets) {
+          await nr('INSERT INTO template_sets (id, template_exercise_id, set_number, reps, weight, rest_time_seconds, rpe, notes, metadata) VALUES (?,?,?,?,?,?,?,?,?)',
+            [genId(), teId, s.set_number, s.reps ?? null, s.weight ?? null, s.rest_time_seconds ?? null, s.rpe ?? null, s.notes ?? null, s.metadata || '{}']);
+        }
+      }
+      return { id: templateId };
+    }
+    return req<{ id: string }>(`/templates/from-workout/${workoutId}`, { method: 'POST', body: JSON.stringify({ name }) });
+  },
+
+  deleteTemplate: async (id: string): Promise<any> => {
+    if (isNative) {
+      await nr('DELETE FROM workout_templates WHERE id = ?', [id]);
+      return { ok: true };
+    }
+    return req<any>(`/templates/${id}`, { method: 'DELETE' });
+  },
+
+  applyTemplate: async (templateId: string, body: { user_id: string; name: string; date: string }): Promise<{ id: string }> => {
+    if (isNative) {
+      const tmpl = await nq('SELECT * FROM workout_templates WHERE id = ?', [templateId]);
+      if (!tmpl.length) throw new Error('Template not found');
+      const workoutId = genId();
+      await nr('INSERT INTO workouts (id, user_id, name, date, notes) VALUES (?, ?, ?, ?, ?)',
+        [workoutId, body.user_id, body.name, body.date, tmpl[0].notes || null]);
+      await nativeQueueSync('workouts', workoutId, 'INSERT', { id: workoutId, ...body });
+      const tes = await nq('SELECT * FROM template_exercises WHERE template_id = ? ORDER BY "order"', [templateId]);
+      for (const te of tes) {
+        const weId = genId();
+        await nr('INSERT INTO workout_exercises (id, workout_id, exercise_id, "order") VALUES (?, ?, ?, ?)',
+          [weId, workoutId, te.exercise_id, te.order]);
+        const tsets = await nq('SELECT * FROM template_sets WHERE template_exercise_id = ? ORDER BY set_number', [te.id]);
+        for (const ts of tsets) {
+          await nr('INSERT INTO sets (id, workout_exercise_id, set_number, reps, weight, rest_time_seconds, rpe, notes, metadata) VALUES (?,?,?,?,?,?,?,?,?)',
+            [genId(), weId, ts.set_number, ts.reps ?? null, ts.weight ?? null, ts.rest_time_seconds ?? null, ts.rpe ?? null, ts.notes ?? null, ts.metadata || '{}']);
+        }
+      }
+      return { id: workoutId };
+    }
+    return req<{ id: string }>(`/templates/${templateId}/apply`, { method: 'POST', body: JSON.stringify(body) });
+  },
+
   // Sync
   syncPush: async (): Promise<{ pushed: number; remaining?: number }> => {
     if (isNative) {

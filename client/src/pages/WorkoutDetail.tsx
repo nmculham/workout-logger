@@ -14,6 +14,7 @@ export default function WorkoutDetail({ user }: Props) {
   const [loading, setLoading] = useState(true);
   const [showPicker, setShowPicker] = useState(false);
   const [addingSet, setAddingSet] = useState<string | null>(null);
+  const [savingTemplate, setSavingTemplate] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -59,6 +60,21 @@ export default function WorkoutDetail({ user }: Props) {
   async function updateSet(setId: string, updates: object) {
     await api.updateSet(setId, updates);
     await load();
+  }
+
+  async function saveAsTemplate() {
+    if (!workout) return;
+    const name = window.prompt('Template name:', workout.name);
+    if (name === null) return; // cancelled
+    setSavingTemplate(true);
+    try {
+      await api.saveAsTemplate(workout.id, name.trim() || workout.name);
+      alert(`Saved as template "${name.trim() || workout.name}"`);
+    } catch (err: any) {
+      alert('Failed to save template: ' + err.message);
+    } finally {
+      setSavingTemplate(false);
+    }
   }
 
   if (loading) return <div className="page">Loading...</div>;
@@ -132,6 +148,15 @@ export default function WorkoutDetail({ user }: Props) {
         onClick={() => setShowPicker(true)}
       >
         + Add Exercise
+      </button>
+
+      <button
+        className="btn-ghost"
+        style={{ marginTop: 10, width: '100%' }}
+        onClick={saveAsTemplate}
+        disabled={savingTemplate}
+      >
+        {savingTemplate ? 'Saving...' : 'Save as Template'}
       </button>
 
       {showPicker && (

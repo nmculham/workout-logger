@@ -11,6 +11,7 @@ export default function Nav({ user }: Props) {
       <NavLink to="/" className={({ isActive }) => isActive ? 'active' : ''}>Dashboard</NavLink>
       <NavLink to="/history" className={({ isActive }) => isActive ? 'active' : ''}>History</NavLink>
       <NavLink to="/exercises" className={({ isActive }) => isActive ? 'active' : ''}>Exercises</NavLink>
+      <NavLink to="/templates" className={({ isActive }) => isActive ? 'active' : ''}>Templates</NavLink>
       <div className="spacer" />
       <span style={{ fontSize: 13, color: '#666' }}>{user.email}</span>
       <button className="btn-ghost" style={{ padding: '6px 12px' }} onClick={signOut}>Sign out</button>
