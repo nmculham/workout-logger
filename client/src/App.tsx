@@ -27,6 +27,40 @@ export default function App() {
     import('./lib/sqlite').then(({ initSQLiteDb }) => initSQLiteDb()).catch(console.error);
   }, []);
 
+  // Handle OAuth deep link callback on native
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    const handles: (() => void)[] = [];
+
+    import('@capacitor/app').then(({ App: CapApp }) => {
+      CapApp.addListener('appUrlOpen', async ({ url }) => {
+        if (!url.startsWith('com.workoutlogger.app://')) return;
+        const { Browser } = await import('@capacitor/browser');
+        await Browser.close();
+
+        try {
+          const parsed = new URL(url);
+          const code = parsed.searchParams.get('code');
+
+          if (code) {
+            await supabase.auth.exchangeCodeForSession(code);
+          } else {
+            const hash = new URLSearchParams(parsed.hash.replace('#', ''));
+            const access_token = hash.get('access_token');
+            const refresh_token = hash.get('refresh_token');
+            if (access_token && refresh_token) {
+              await supabase.auth.setSession({ access_token, refresh_token });
+            }
+          }
+        } catch (err) {
+          console.error('[appUrlOpen] error handling deep link:', err);
+        }
+      }).then(h => handles.push(() => h.remove()));
+    });
+
+    return () => handles.forEach(fn => fn());
+  }, []);
+
   // Auth state
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {

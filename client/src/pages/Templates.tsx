@@ -11,9 +11,12 @@ export default function Templates({ user }: Props) {
   const [loading, setLoading] = useState(true);
 
   async function load() {
-    const data = await api.getTemplates(user.id);
-    setTemplates(data);
-    setLoading(false);
+    try {
+      const data = await api.getTemplates(user.id);
+      setTemplates(data);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => { load(); }, [user.id]);

@@ -1,47 +1,47 @@
 import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import { getDb } from '../db/sqlite';
+import { getPool } from '../db/postgres';
 
 const router = Router();
 
 // GET /api/exercises?user_id=...
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   const { user_id } = req.query;
-  const db = getDb();
-  const exercises = user_id
-    ? db.prepare(
-        'SELECT * FROM exercises WHERE is_global = 1 OR user_id = ? ORDER BY muscle_group, name'
-      ).all(user_id as string)
-    : db.prepare('SELECT * FROM exercises WHERE is_global = 1 ORDER BY muscle_group, name').all();
-  res.json(exercises);
+  const pool = getPool();
+  const { rows } = user_id
+    ? await pool.query(
+        'SELECT * FROM exercises WHERE is_global = true OR user_id = $1 ORDER BY muscle_group, name',
+        [user_id]
+      )
+    : await pool.query('SELECT * FROM exercises WHERE is_global = true ORDER BY muscle_group, name');
+  res.json(rows);
 });
 
 // POST /api/exercises
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   const { name, muscle_group, user_id } = req.body;
   if (!name || !muscle_group) return res.status(400).json({ error: 'name and muscle_group required' });
-  const db = getDb();
   const id = uuidv4();
-  db.prepare(
-    'INSERT INTO exercises (id, name, muscle_group, is_global, user_id) VALUES (?, ?, ?, 0, ?)'
-  ).run([id, name, muscle_group, user_id || null]);
+  await getPool().query(
+    'INSERT INTO exercises (id, name, muscle_group, is_global, user_id) VALUES ($1, $2, $3, false, $4)',
+    [id, name, muscle_group, user_id || null]
+  );
   res.status(201).json({ id });
 });
 
 // PUT /api/exercises/:id
-router.put('/:id', (req, res) => {
+router.put('/:id', async (req, res) => {
   const { name, muscle_group } = req.body;
-  const db = getDb();
-  db.prepare(
-    "UPDATE exercises SET name = ?, muscle_group = ?, updated_at = datetime('now') WHERE id = ? AND is_global = 0"
-  ).run([name, muscle_group, req.params.id]);
+  await getPool().query(
+    'UPDATE exercises SET name = $1, muscle_group = $2, updated_at = now() WHERE id = $3 AND is_global = false',
+    [name, muscle_group, req.params.id]
+  );
   res.json({ ok: true });
 });
 
 // DELETE /api/exercises/:id
-router.delete('/:id', (req, res) => {
-  const db = getDb();
-  db.prepare('DELETE FROM exercises WHERE id = ? AND is_global = 0').run(req.params.id);
+router.delete('/:id', async (req, res) => {
+  await getPool().query('DELETE FROM exercises WHERE id = $1 AND is_global = false', [req.params.id]);
   res.json({ ok: true });
 });
 

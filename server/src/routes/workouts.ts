@@ -1,98 +1,88 @@
 import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import { getDb } from '../db/sqlite';
+import { getPool } from '../db/postgres';
 
 const router = Router();
 
 // GET /api/workouts?user_id=...
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   const { user_id } = req.query;
   if (!user_id) return res.status(400).json({ error: 'user_id required' });
-  const db = getDb();
-  const workouts = db.prepare(
-    'SELECT * FROM workouts WHERE user_id = ? ORDER BY date DESC'
-  ).all(user_id as string);
-  res.json(workouts);
+  const { rows } = await getPool().query(
+    'SELECT * FROM workouts WHERE user_id = $1 ORDER BY date DESC',
+    [user_id]
+  );
+  res.json(rows);
 });
 
 // GET /api/workouts/:id
-router.get('/:id', (req, res) => {
-  const db = getDb();
-  const workout = db.prepare('SELECT * FROM workouts WHERE id = ?').get(req.params.id);
+router.get('/:id', async (req, res) => {
+  const pool = getPool();
+  const { rows: [workout] } = await pool.query('SELECT * FROM workouts WHERE id = $1', [req.params.id]);
   if (!workout) return res.status(404).json({ error: 'Not found' });
 
-  const workoutExercises = db.prepare(`
+  const { rows: workoutExercises } = await pool.query(`
     SELECT we.*, e.name as exercise_name, e.muscle_group
     FROM workout_exercises we
     JOIN exercises e ON e.id = we.exercise_id
-    WHERE we.workout_id = ?
+    WHERE we.workout_id = $1
     ORDER BY we."order"
-  `).all(req.params.id);
+  `, [req.params.id]);
 
-  const weIds = (workoutExercises as any[]).map(we => we.id);
+  const weIds = workoutExercises.map(we => we.id);
   const sets = weIds.length
-    ? db.prepare(
-        `SELECT * FROM sets WHERE workout_exercise_id IN (${weIds.map(() => '?').join(',')}) ORDER BY set_number`
-      ).all(weIds)
+    ? (await pool.query(
+        'SELECT * FROM sets WHERE workout_exercise_id = ANY($1) ORDER BY set_number',
+        [weIds]
+      )).rows
     : [];
 
-  res.json({ ...(workout as object), exercises: workoutExercises, sets });
+  res.json({ ...workout, exercises: workoutExercises, sets });
 });
 
 // POST /api/workouts
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   const { user_id, name, date, notes } = req.body;
   if (!user_id || !name || !date) return res.status(400).json({ error: 'user_id, name, date required' });
-  const db = getDb();
   const id = uuidv4();
-  db.prepare(
-    'INSERT INTO workouts (id, user_id, name, date, notes) VALUES (?, ?, ?, ?, ?)'
-  ).run([id, user_id, name, date, notes || null]);
-  queueSync(db, 'workouts', id, 'INSERT', { id, user_id, name, date, notes });
+  await getPool().query(
+    'INSERT INTO workouts (id, user_id, name, date, notes) VALUES ($1, $2, $3, $4, $5)',
+    [id, user_id, name, date, notes || null]
+  );
   res.status(201).json({ id });
 });
 
 // PUT /api/workouts/:id
-router.put('/:id', (req, res) => {
+router.put('/:id', async (req, res) => {
   const { name, date, notes } = req.body;
-  const db = getDb();
-  db.prepare(
-    "UPDATE workouts SET name = ?, date = ?, notes = ?, updated_at = datetime('now') WHERE id = ?"
-  ).run([name, date, notes || null, req.params.id]);
-  queueSync(db, 'workouts', req.params.id, 'UPDATE', { name, date, notes });
+  await getPool().query(
+    'UPDATE workouts SET name = $1, date = $2, notes = $3, updated_at = now() WHERE id = $4',
+    [name, date, notes || null, req.params.id]
+  );
   res.json({ ok: true });
 });
 
 // DELETE /api/workouts/:id
-router.delete('/:id', (req, res) => {
-  const db = getDb();
-  db.prepare('DELETE FROM workouts WHERE id = ?').run(req.params.id);
-  queueSync(db, 'workouts', req.params.id, 'DELETE', {});
+router.delete('/:id', async (req, res) => {
+  await getPool().query('DELETE FROM workouts WHERE id = $1', [req.params.id]);
   res.json({ ok: true });
 });
 
 // POST /api/workouts/:id/exercises
-router.post('/:id/exercises', (req, res) => {
+router.post('/:id/exercises', async (req, res) => {
   const { exercise_id, order } = req.body;
-  const db = getDb();
   const id = uuidv4();
-  db.prepare(
-    'INSERT INTO workout_exercises (id, workout_id, exercise_id, "order") VALUES (?, ?, ?, ?)'
-  ).run([id, req.params.id, exercise_id, order ?? 0]);
+  await getPool().query(
+    'INSERT INTO workout_exercises (id, workout_id, exercise_id, "order") VALUES ($1, $2, $3, $4)',
+    [id, req.params.id, exercise_id, order ?? 0]
+  );
   res.status(201).json({ id });
 });
 
 // DELETE /api/workouts/exercises/:weId
-router.delete('/exercises/:weId', (req, res) => {
-  const db = getDb();
-  db.prepare('DELETE FROM workout_exercises WHERE id = ?').run(req.params.weId);
+router.delete('/exercises/:weId', async (req, res) => {
+  await getPool().query('DELETE FROM workout_exercises WHERE id = $1', [req.params.weId]);
   res.json({ ok: true });
 });
-
-function queueSync(db: any, table: string, recordId: string, op: string, payload: object) {
-  db.prepare(
-    'INSERT INTO sync_queue (table_name, record_id, operation, payload) VALUES (?, ?, ?, ?)'
-  ).run([table, recordId, op, JSON.stringify(payload)]);
-}
 
 export default router;
