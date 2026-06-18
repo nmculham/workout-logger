@@ -3,7 +3,7 @@ import { Capacitor } from '@capacitor/core';
 const isNative = Capacitor.isNativePlatform();
 
 // ── Web: HTTP helpers ─────────────────────────────────────────────────────────
-const BASE = (import.meta.env.VITE_API_URL as string) || '/api';
+const BASE = ((import.meta.env.VITE_API_URL as string) || '/api').trim();
 
 async function req<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
