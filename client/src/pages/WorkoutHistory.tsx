@@ -44,9 +44,6 @@ export default function WorkoutHistory({ user }: Props) {
                     </div>
                     {w.notes && <div style={{ fontSize: 12, color: '#555', marginTop: 4 }}>{w.notes}</div>}
                   </div>
-                  <span className={`badge ${w.synced_at ? 'badge-green' : 'badge-yellow'}`}>
-                    {w.synced_at ? 'Synced' : 'Local'}
-                  </span>
                   <button
                     className="btn-danger"
                     style={{ padding: '4px 10px', fontSize: 12 }}

@@ -96,9 +96,6 @@ export default function WorkoutDetail({ user }: Props) {
           </p>
           {workout.notes && <p style={{ color: '#a0a0a0', fontSize: 13, marginTop: 8 }}>{workout.notes}</p>}
         </div>
-        <span className={`badge ${workout.synced_at ? 'badge-green' : 'badge-yellow'}`}>
-          {workout.synced_at ? 'Synced' : 'Local'}
-        </span>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20, marginTop: 24 }}>
