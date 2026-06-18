@@ -159,6 +159,14 @@ export default function WorkoutDetail({ user }: Props) {
         {savingTemplate ? 'Saving...' : 'Save as Template'}
       </button>
 
+      <button
+        className="btn-primary"
+        style={{ marginTop: 10, width: '100%', background: '#22c55e', borderColor: '#22c55e' }}
+        onClick={() => navigate('/history')}
+      >
+        Finish Workout
+      </button>
+
       {showPicker && (
         <ExercisePicker
           userId={user.id}
