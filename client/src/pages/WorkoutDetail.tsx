@@ -91,7 +91,9 @@ export default function WorkoutDetail({ user }: Props) {
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 8 }}>
         <div style={{ flex: 1 }}>
           <h1 style={{ margin: 0 }}>{workout.name}</h1>
-          <p style={{ color: '#666', margin: '4px 0 0', fontSize: 14 }}>{workout.date}</p>
+          <p style={{ color: '#666', margin: '4px 0 0', fontSize: 14 }}>
+            {new Date(workout.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}
+          </p>
           {workout.notes && <p style={{ color: '#a0a0a0', fontSize: 13, marginTop: 8 }}>{workout.notes}</p>}
         </div>
         <span className={`badge ${workout.synced_at ? 'badge-green' : 'badge-yellow'}`}>

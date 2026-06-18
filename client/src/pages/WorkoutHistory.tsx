@@ -39,7 +39,9 @@ export default function WorkoutHistory({ user }: Props) {
                 <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 600 }}>{w.name}</div>
-                    <div style={{ fontSize: 13, color: '#666' }}>{w.date}</div>
+                    <div style={{ fontSize: 13, color: '#666' }}>
+                      {new Date(w.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}
+                    </div>
                     {w.notes && <div style={{ fontSize: 12, color: '#555', marginTop: 4 }}>{w.notes}</div>}
                   </div>
                   <span className={`badge ${w.synced_at ? 'badge-green' : 'badge-yellow'}`}>
