@@ -11,6 +11,7 @@ export default function SetRow({ set, onUpdate, onDelete }: SetRowProps) {
   const [reps, setReps] = useState(set.reps ?? '');
   const [rest, setRest] = useState(set.rest_time_seconds ?? '');
   const [rpe, setRpe] = useState(set.rpe ?? '');
+  const [notes, setNotes] = useState(set.notes ?? '');
   const [saving, setSaving] = useState(false);
 
   async function save() {
@@ -20,7 +21,7 @@ export default function SetRow({ set, onUpdate, onDelete }: SetRowProps) {
       reps: reps !== '' ? Number(reps) : null,
       rest_time_seconds: rest !== '' ? Number(rest) : null,
       rpe: rpe !== '' ? Number(rpe) : null,
-      notes: set.notes,
+      notes: notes !== '' ? notes : null,
       metadata: JSON.parse(set.metadata || '{}'),
     });
     setSaving(false);
@@ -33,63 +34,75 @@ export default function SetRow({ set, onUpdate, onDelete }: SetRowProps) {
   };
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '32px 1fr 1fr 1fr 1fr 80px', gap: 8, alignItems: 'center', marginBottom: 6 }}>
-      <span style={{ color: '#666', fontSize: 13 }}>{set.set_number}</span>
-      <input
-        type="number"
-        value={weight}
-        onChange={e => setWeight(e.target.value)}
-        onBlur={save}
-        placeholder="kg"
-        style={inputStyle}
-        min={0}
-        step={0.5}
-      />
-      <input
-        type="number"
-        value={reps}
-        onChange={e => setReps(e.target.value)}
-        onBlur={save}
-        placeholder="reps"
-        style={inputStyle}
-        min={0}
-      />
-      <input
-        type="number"
-        value={rest}
-        onChange={e => setRest(e.target.value)}
-        onBlur={save}
-        placeholder="sec"
-        style={inputStyle}
-        min={0}
-      />
-      <input
-        type="number"
-        value={rpe}
-        onChange={e => setRpe(e.target.value)}
-        onBlur={save}
-        placeholder="1-10"
-        style={inputStyle}
-        min={1}
-        max={10}
-        step={0.5}
-      />
-      <div style={{ display: 'flex', gap: 4 }}>
-        <button
-          className="btn-ghost"
-          style={{ fontSize: 11, padding: '4px 8px' }}
-          onClick={save}
-          disabled={saving}
-        >
-          {saving ? '...' : 'Save'}
-        </button>
-        <button
-          className="btn-ghost"
-          style={{ fontSize: 11, padding: '4px 8px', color: '#ef4444' }}
-          onClick={() => onDelete(set.id)}
-        >
-          &#x2715;
-        </button>
+    <div style={{ marginBottom: 6 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '32px 1fr 1fr 1fr 1fr 80px', gap: 8, alignItems: 'center' }}>
+        <span style={{ color: '#666', fontSize: 13 }}>{set.set_number}</span>
+        <input
+          type="number"
+          value={weight}
+          onChange={e => setWeight(e.target.value)}
+          onBlur={save}
+          placeholder="kg"
+          style={inputStyle}
+          min={0}
+          step={0.5}
+        />
+        <input
+          type="number"
+          value={reps}
+          onChange={e => setReps(e.target.value)}
+          onBlur={save}
+          placeholder="reps"
+          style={inputStyle}
+          min={0}
+        />
+        <input
+          type="number"
+          value={rest}
+          onChange={e => setRest(e.target.value)}
+          onBlur={save}
+          placeholder="sec"
+          style={inputStyle}
+          min={0}
+        />
+        <input
+          type="number"
+          value={rpe}
+          onChange={e => setRpe(e.target.value)}
+          onBlur={save}
+          placeholder="1-10"
+          style={inputStyle}
+          min={1}
+          max={10}
+          step={0.5}
+        />
+        <div style={{ display: 'flex', gap: 4 }}>
+          <button
+            className="btn-ghost"
+            style={{ fontSize: 11, padding: '4px 8px' }}
+            onClick={save}
+            disabled={saving}
+          >
+            {saving ? '...' : 'Save'}
+          </button>
+          <button
+            className="btn-ghost"
+            style={{ fontSize: 11, padding: '4px 8px', color: '#ef4444' }}
+            onClick={() => onDelete(set.id)}
+          >
+            &#x2715;
+          </button>
+        </div>
+      </div>
+      <div style={{ paddingLeft: 40, marginTop: 4 }}>
+        <input
+          type="text"
+          value={notes}
+          onChange={e => setNotes(e.target.value)}
+          onBlur={save}
+          placeholder="Notes..."
+          style={{ ...inputStyle, width: '100%', fontSize: 12, color: '#a0a0a0' }}
+        />
       </div>
     </div>
   );
