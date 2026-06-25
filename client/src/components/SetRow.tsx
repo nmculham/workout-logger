@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, forwardRef, useImperativeHandle } from 'react';
 
 interface SetRowProps {
   set: any;
@@ -6,15 +6,22 @@ interface SetRowProps {
   onDelete: (id: string) => void;
 }
 
-export default function SetRow({ set, onUpdate, onDelete }: SetRowProps) {
+export interface SetRowHandle {
+  flush: () => Promise<void>;
+}
+
+const SetRow = forwardRef<SetRowHandle, SetRowProps>(function SetRow({ set, onUpdate, onDelete }, ref) {
   const [weight, setWeight] = useState(set.weight ?? '');
   const [reps, setReps] = useState(set.reps ?? '');
   const [rest, setRest] = useState(set.rest_time_seconds ?? '');
   const [rpe, setRpe] = useState(set.rpe ?? '');
   const [notes, setNotes] = useState(set.notes ?? '');
   const [saving, setSaving] = useState(false);
+  const dirty = useRef(false);
 
   async function save() {
+    if (!dirty.current) return;
+    dirty.current = false;
     setSaving(true);
     await onUpdate(set.id, {
       weight: weight !== '' ? Number(weight) : null,
@@ -26,6 +33,8 @@ export default function SetRow({ set, onUpdate, onDelete }: SetRowProps) {
     });
     setSaving(false);
   }
+
+  useImperativeHandle(ref, () => ({ flush: save }));
 
   const inputStyle = {
     padding: '5px 8px',
@@ -40,7 +49,7 @@ export default function SetRow({ set, onUpdate, onDelete }: SetRowProps) {
         <input
           type="number"
           value={weight}
-          onChange={e => setWeight(e.target.value)}
+          onChange={e => { dirty.current = true; setWeight(e.target.value); }}
           onBlur={save}
           placeholder="kg"
           style={inputStyle}
@@ -50,7 +59,7 @@ export default function SetRow({ set, onUpdate, onDelete }: SetRowProps) {
         <input
           type="number"
           value={reps}
-          onChange={e => setReps(e.target.value)}
+          onChange={e => { dirty.current = true; setReps(e.target.value); }}
           onBlur={save}
           placeholder="reps"
           style={inputStyle}
@@ -59,7 +68,7 @@ export default function SetRow({ set, onUpdate, onDelete }: SetRowProps) {
         <input
           type="number"
           value={rest}
-          onChange={e => setRest(e.target.value)}
+          onChange={e => { dirty.current = true; setRest(e.target.value); }}
           onBlur={save}
           placeholder="sec"
           style={inputStyle}
@@ -68,7 +77,7 @@ export default function SetRow({ set, onUpdate, onDelete }: SetRowProps) {
         <input
           type="number"
           value={rpe}
-          onChange={e => setRpe(e.target.value)}
+          onChange={e => { dirty.current = true; setRpe(e.target.value); }}
           onBlur={save}
           placeholder="1-10"
           style={inputStyle}
@@ -98,7 +107,7 @@ export default function SetRow({ set, onUpdate, onDelete }: SetRowProps) {
         <input
           type="text"
           value={notes}
-          onChange={e => setNotes(e.target.value)}
+          onChange={e => { dirty.current = true; setNotes(e.target.value); }}
           onBlur={save}
           placeholder="Notes..."
           style={{ ...inputStyle, width: '100%', fontSize: 12, color: '#a0a0a0' }}
@@ -106,4 +115,6 @@ export default function SetRow({ set, onUpdate, onDelete }: SetRowProps) {
       </div>
     </div>
   );
-}
+});
+
+export default SetRow;

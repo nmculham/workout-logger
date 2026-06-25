@@ -1,9 +1,9 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import type { User } from '@supabase/supabase-js';
 import { api } from '../lib/api';
 import ExercisePicker from '../components/ExercisePicker';
-import SetRow from '../components/SetRow';
+import SetRow, { type SetRowHandle } from '../components/SetRow';
 
 interface Props { user: User; }
 
@@ -15,6 +15,12 @@ export default function WorkoutDetail({ user }: Props) {
   const [showPicker, setShowPicker] = useState(false);
   const [addingSet, setAddingSet] = useState<string | null>(null);
   const [savingTemplate, setSavingTemplate] = useState(false);
+  const setRowRefs = useRef<Map<string, SetRowHandle>>(new Map());
+
+  async function handleBack() {
+    await Promise.all([...setRowRefs.current.values()].map(r => r.flush()));
+    navigate(-1);
+  }
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -85,7 +91,7 @@ export default function WorkoutDetail({ user }: Props) {
 
   return (
     <div className="page">
-      <button className="btn-ghost" onClick={() => navigate(-1)} style={{ marginBottom: 16, fontSize: 13 }}>
+      <button className="btn-ghost" onClick={handleBack} style={{ marginBottom: 16, fontSize: 13 }}>
         &larr; Back
       </button>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 8 }}>
@@ -123,7 +129,13 @@ export default function WorkoutDetail({ user }: Props) {
                     <span>#</span><span>Weight</span><span>Reps</span><span>Rest (s)</span><span>RPE</span><span></span>
                   </div>
                   {sets.map(s => (
-                    <SetRow key={s.id} set={s} onUpdate={updateSet} onDelete={deleteSet} />
+                    <SetRow
+                      key={s.id}
+                      ref={el => { if (el) setRowRefs.current.set(s.id, el); else setRowRefs.current.delete(s.id); }}
+                      set={s}
+                      onUpdate={updateSet}
+                      onDelete={deleteSet}
+                    />
                   ))}
                 </div>
               )}
@@ -161,7 +173,7 @@ export default function WorkoutDetail({ user }: Props) {
       <button
         className="btn-primary"
         style={{ marginTop: 10, width: '100%', background: '#22c55e', borderColor: '#22c55e' }}
-        onClick={() => navigate('/history')}
+        onClick={async () => { await Promise.all([...setRowRefs.current.values()].map(r => r.flush())); navigate('/history'); }}
       >
         Finish Workout
       </button>
