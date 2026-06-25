@@ -3,6 +3,7 @@
 ## Features
 - [ ] Create historical charts section
 - [ ] Set tempo timer
+- [ ] Settings section with metric / imperial toggle
 - [ ] Dashboard "show more" / pagination past the first 5 workouts
 
 ## Bugs
