@@ -4,8 +4,20 @@ import type { User } from '@supabase/supabase-js';
 import { api } from '../lib/api';
 import ExercisePicker from '../components/ExercisePicker';
 import SetRow, { type SetRowHandle } from '../components/SetRow';
+import { useTempoTimer, PHASE_LABELS } from '../hooks/useTempoTimer';
+import type { Tempo } from '../hooks/useTempoTimer';
 
 interface Props { user: User; }
+
+interface ExerciseTempo {
+  enabled: boolean;
+  eccentric: number;
+  pauseBottom: number;
+  concentric: number;
+  pauseTop: number;
+}
+
+const DEFAULT_TEMPO: ExerciseTempo = { enabled: false, eccentric: 3, pauseBottom: 1, concentric: 2, pauseTop: 1 };
 
 export default function WorkoutDetail({ user }: Props) {
   const { id } = useParams<{ id: string }>();
@@ -16,6 +28,10 @@ export default function WorkoutDetail({ user }: Props) {
   const [addingSet, setAddingSet] = useState<string | null>(null);
   const [savingTemplate, setSavingTemplate] = useState(false);
   const setRowRefs = useRef<Map<string, SetRowHandle>>(new Map());
+  const [tempoState, setTempoState] = useState<Record<string, ExerciseTempo>>({});
+  const [activeTimerWeId, setActiveTimerWeId] = useState<string | null>(null);
+  const timer = useTempoTimer();
+  const debounceRefs = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   async function handleBack() {
     await Promise.all([...setRowRefs.current.values()].map(r => r.flush()));
@@ -30,6 +46,56 @@ export default function WorkoutDetail({ user }: Props) {
   }, [id]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (!workout?.exercises) return;
+    setTempoState(prev => {
+      const next = { ...prev };
+      for (const we of workout.exercises) {
+        if (next[we.id]) continue;
+        let meta: any = {};
+        try { meta = JSON.parse(we.metadata || '{}'); } catch {}
+        next[we.id] = meta.tempo ? { enabled: true, ...meta.tempo } : { ...DEFAULT_TEMPO };
+      }
+      return next;
+    });
+  }, [workout]);
+
+  function toggleTempo(weId: string) {
+    const current = tempoState[weId] ?? { ...DEFAULT_TEMPO };
+    const next = { ...current, enabled: !current.enabled };
+    if (!next.enabled && activeTimerWeId === weId) {
+      timer.stop();
+      setActiveTimerWeId(null);
+    }
+    setTempoState(prev => ({ ...prev, [weId]: next }));
+    api.updateWorkoutExerciseMeta(weId, next.enabled
+      ? { tempo: { eccentric: next.eccentric, pauseBottom: next.pauseBottom, concentric: next.concentric, pauseTop: next.pauseTop } }
+      : {}
+    );
+  }
+
+  function updateTempoValue(weId: string, field: keyof Tempo, value: number) {
+    const current = tempoState[weId] ?? { ...DEFAULT_TEMPO, enabled: true };
+    const next = { ...current, [field]: value };
+    setTempoState(prev => ({ ...prev, [weId]: next }));
+    if (debounceRefs.current[weId]) clearTimeout(debounceRefs.current[weId]);
+    debounceRefs.current[weId] = setTimeout(() => {
+      api.updateWorkoutExerciseMeta(weId, { tempo: { eccentric: next.eccentric, pauseBottom: next.pauseBottom, concentric: next.concentric, pauseTop: next.pauseTop } });
+    }, 500);
+  }
+
+  function startTimer(weId: string) {
+    const t = tempoState[weId];
+    if (!t) return;
+    setActiveTimerWeId(weId);
+    timer.start({ eccentric: t.eccentric, pauseBottom: t.pauseBottom, concentric: t.concentric, pauseTop: t.pauseTop });
+  }
+
+  function stopTimer() {
+    timer.stop();
+    setActiveTimerWeId(null);
+  }
 
   async function addExercise(exerciseId: string) {
     if (!id) return;
@@ -107,13 +173,32 @@ export default function WorkoutDetail({ user }: Props) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20, marginTop: 24 }}>
         {exerciseList.map((we: any) => {
           const sets = allSets.filter(s => s.workout_exercise_id === we.id);
+          const tempo = tempoState[we.id];
+          const isTimerRunning = activeTimerWeId === we.id && timer.state !== null;
+          const canPlay = tempo?.enabled && tempo.eccentric >= 1 && tempo.pauseBottom >= 1 && tempo.concentric >= 1 && tempo.pauseTop >= 1;
           return (
             <div key={we.id} className="card">
-              <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: tempo?.enabled ? 8 : 12 }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600 }}>{we.exercise_name}</div>
                   <div style={{ fontSize: 12, color: '#666' }}>{we.muscle_group}</div>
                 </div>
+                {canPlay && !isTimerRunning && (
+                  <button
+                    className="btn-ghost"
+                    style={{ fontSize: 14, padding: '4px 10px', marginRight: 6 }}
+                    onClick={() => startTimer(we.id)}
+                  >
+                    ▶
+                  </button>
+                )}
+                <button
+                  className="btn-ghost"
+                  style={{ fontSize: 12, padding: '4px 10px', marginRight: 6, ...(tempo?.enabled ? { color: '#3b82f6', borderColor: '#3b82f6' } : {}) }}
+                  onClick={() => toggleTempo(we.id)}
+                >
+                  Tempo
+                </button>
                 <button
                   className="btn-ghost"
                   style={{ fontSize: 12, padding: '4px 10px', color: '#ef4444', borderColor: '#ef4444' }}
@@ -122,6 +207,32 @@ export default function WorkoutDetail({ user }: Props) {
                   Remove
                 </button>
               </div>
+
+              {tempo?.enabled && (
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
+                  {(['eccentric', 'pauseBottom', 'concentric', 'pauseTop'] as const).map((field, i) => (
+                    <div key={field} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                      <span style={{ fontSize: 10, color: '#666' }}>{['E', 'P', 'C', 'P'][i]}</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={9}
+                        value={tempo[field]}
+                        onChange={e => updateTempoValue(we.id, field, Math.max(1, parseInt(e.target.value) || 1))}
+                        style={{ width: 40, textAlign: 'center', padding: '4px 2px', border: '1px solid #333', borderRadius: 6, background: '#1a1a1a', color: 'inherit', fontSize: 14 }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {isTimerRunning && timer.state && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 8, background: '#0f172a', border: '1px solid #3b82f6', marginBottom: 12 }}>
+                  <span style={{ flex: 1, fontWeight: 600, color: '#93c5fd' }}>{PHASE_LABELS[timer.state.phase]}</span>
+                  <span style={{ fontSize: 28, fontWeight: 700, color: '#fff', minWidth: 32, textAlign: 'right' }}>{timer.state.secondsLeft}</span>
+                  <button className="btn-ghost" style={{ fontSize: 12, padding: '4px 8px', marginLeft: 4 }} onClick={stopTimer}>⏹</button>
+                </div>
+              )}
 
               {sets.length > 0 && (
                 <div style={{ marginBottom: 12 }}>

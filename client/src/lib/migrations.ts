@@ -139,4 +139,8 @@ export const migrations: Migration[] = [
         ('ex-067', 'Bicycle Crunch', 'Core', 1);
     `,
   },
+  {
+    name: '004_workout_exercise_metadata',
+    sql: `ALTER TABLE workout_exercises ADD COLUMN metadata TEXT DEFAULT '{}';`,
+  },
 ];

@@ -85,4 +85,14 @@ router.delete('/exercises/:weId', async (req, res) => {
   res.json({ ok: true });
 });
 
+// PATCH /api/workouts/exercises/:weId/metadata
+router.patch('/exercises/:weId/metadata', async (req, res) => {
+  const { metadata } = req.body;
+  await getPool().query(
+    'UPDATE workout_exercises SET metadata = $1 WHERE id = $2',
+    [JSON.stringify(metadata ?? {}), req.params.weId]
+  );
+  res.json({ ok: true });
+});
+
 export default router;

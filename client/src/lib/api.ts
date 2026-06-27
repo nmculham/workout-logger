@@ -142,6 +142,16 @@ export const api = {
     return { ok: true };
   },
 
+  updateWorkoutExerciseMeta: async (weId: string, metadata: object): Promise<any> => {
+    if (isNative) {
+      await nr("UPDATE workout_exercises SET metadata = ? WHERE id = ?", [JSON.stringify(metadata), weId]);
+      return { ok: true };
+    }
+    const { error } = await supabase.from('workout_exercises').update({ metadata: metadata as any }).eq('id', weId);
+    if (error) sbErr(error);
+    return { ok: true };
+  },
+
   // Exercises
   getExercises: async (userId?: string): Promise<any[]> => {
     if (isNative) {
