@@ -14,7 +14,7 @@
 - [x] Replace `window.prompt()` / `alert()` in WorkoutDetail — fixed across all pages with Dialog component + useDialog hook
 
 ## Security
-- [ ] Add JWT verification to Express routes (currently any caller with a known UUID can read/modify another user's data)
+- [x] Add JWT verification to Express routes — added requireAuth middleware using supabase.auth.getUser(), all routes now scope to req.userId
 
 ## Missing / Incomplete
 - [ ] Implement `PUT /api/exercises/:id` route (documented in README but not built)
