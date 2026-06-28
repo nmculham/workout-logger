@@ -1,10 +1,10 @@
 # Workout Logger — TODO
 
 ## Features
-- [ ] Create historical charts section
-- [ ] Set tempo timer
-- [ ] Settings section with metric / imperial toggle
-- [ ] Dashboard "show more" / pagination past the first 5 workouts
+- [x] Create historical charts section
+- [x] Set tempo timer
+- [x] Settings section with metric / imperial toggle
+- [x] Dashboard "show more" / pagination past the first 5 workouts
 
 ## Bugs
 - [x] Investigate: reps and weights from previous workouts not being saved — fixed by removing metadata passthrough from SetRow.save() which was crashing silently after Express/pg stored it as "[object Object]"
