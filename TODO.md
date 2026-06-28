@@ -19,7 +19,7 @@
 ## Missing / Incomplete
 - [x] Implement `PUT /api/exercises/:id` route — implemented during security rewrite (scoped to user_id, is_global = false)
 - [x] Add try/catch error handling to all Express route handlers — added asyncHandler wrapper + global error handler in index.ts
-- [ ] Create missing server migration script (`server/package.json` references `src/db/migrate.ts` which doesn't exist)
+- [x] Create missing server migration script — reads SQL files from migrations/, tracks applied migrations in schema_migrations table
 
 ## Docs
 - [ ] Update README (still references SQLite/better-sqlite3; no mention of Capacitor or mobile build)
