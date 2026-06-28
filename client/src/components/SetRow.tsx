@@ -29,7 +29,6 @@ const SetRow = forwardRef<SetRowHandle, SetRowProps>(function SetRow({ set, onUp
       rest_time_seconds: rest !== '' ? Number(rest) : null,
       rpe: rpe !== '' ? Number(rpe) : null,
       notes: notes !== '' ? notes : null,
-      metadata: JSON.parse(set.metadata || '{}'),
     });
     setSaving(false);
   }
