@@ -1,13 +1,14 @@
 # Workout Logger
 
-A full-stack workout logging application with offline-first local storage (SQLite) and optional cloud sync (Supabase).
+A full-stack workout logging application with cloud storage (Supabase/Postgres) and optional native mobile builds (Capacitor).
 
 ## Tech Stack
 
 - **Frontend**: React 18 + TypeScript + Vite
 - **Backend**: Node.js + Express + TypeScript
-- **Local DB**: SQLite via better-sqlite3 (auto-migrated on startup)
-- **Cloud DB**: Supabase (Postgres + Auth) for sync and auth
+- **Database**: PostgreSQL via Supabase
+- **Auth**: Supabase Auth (JWT verified server-side on all API routes)
+- **Native**: Capacitor (iOS/Android) with local SQLite for offline use
 
 ---
 
@@ -15,7 +16,7 @@ A full-stack workout logging application with offline-first local storage (SQLit
 
 - Node.js 18 or later
 - npm 9 or later
-- A Supabase project (free tier works fine) — optional for local-only use
+- A Supabase project (free tier works fine)
 
 ---
 
@@ -42,10 +43,11 @@ cp .env.example .env
 Edit `.env`:
 
 ```
+DATABASE_URL=postgresql://postgres:[password]@db.[project-ref].supabase.co:5432/postgres
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_ANON_KEY=your-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 PORT=3001
+CLIENT_ORIGIN=http://localhost:5173
 ```
 
 Copy the client env example:
@@ -59,11 +61,20 @@ Edit `client/.env`:
 ```
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
+VITE_API_URL=http://localhost:3001
 ```
 
-> If you want to run fully offline without Supabase, you can leave the Supabase values empty. Auth and sync features will be unavailable, but local logging will work.
+### 3. Run database migrations
 
-### 3. Run the development servers
+Apply the schema to your Supabase Postgres database:
+
+```bash
+cd server && npm run migrate
+```
+
+This runs all SQL files in `server/src/db/migrations/` in order, tracking applied migrations in a `schema_migrations` table.
+
+### 4. Run the development servers
 
 Start both the backend and frontend together:
 
@@ -78,18 +89,9 @@ npm run server   # Express API on http://localhost:3001
 npm run client   # Vite dev server on http://localhost:5173
 ```
 
-The SQLite database is created automatically at `server/data/workout-logger.db` and migrations run on first startup.
-
 ---
 
 ## Supabase Setup
-
-### Create the schema
-
-In your Supabase project, open the SQL Editor and run the contents of:
-
-1. `supabase/migrations/001_initial_schema.sql` — creates tables and RLS policies
-2. `supabase/migrations/002_seed_exercises.sql` — seeds 30 built-in exercises
 
 ### Enable Email Auth
 
@@ -97,10 +99,7 @@ In your Supabase dashboard: **Authentication > Providers > Email** — ensure it
 
 ### Row Level Security
 
-RLS is enabled on all tables. The policies ensure:
-- Global exercises are readable by anyone
-- Users can only read and write their own workouts, workout exercises, and sets
-- Custom exercises are scoped to the creating user
+RLS policies are defined in `supabase/migrations/`. Run these in the Supabase SQL Editor if you want RLS enforced at the database level (optional — the Express API enforces user scoping via JWT on every query).
 
 ---
 
@@ -115,66 +114,89 @@ workout-logger/
 │   ├── package.json
 │   ├── tsconfig.json
 │   └── src/
-│       ├── index.ts          # Express app entry point
+│       ├── index.ts          # Express app entry point + global error handler
 │       ├── db/
-│       │   ├── sqlite.ts     # DB init, connection, migration runner
+│       │   ├── postgres.ts   # Pool init and connection
+│       │   ├── migrate.ts    # Migration runner (npm run migrate)
 │       │   └── migrations/
 │       │       ├── 001_initial_schema.sql
-│       │       └── 002_seed_exercises.sql
+│       │       ├── 002_seed_exercises.sql
+│       │       ├── 003_templates.sql
+│       │       └── 004_workout_exercise_metadata.sql
+│       ├── middleware/
+│       │   ├── auth.ts       # JWT verification via Supabase, attaches req.userId
+│       │   └── asyncHandler.ts  # Wraps async handlers, forwards errors to Express
 │       └── routes/
-│           ├── workouts.ts   # CRUD for workouts and workout_exercises
+│           ├── workouts.ts   # CRUD for workouts, workout_exercises, and metadata
 │           ├── exercises.ts  # CRUD for exercises
 │           ├── sets.ts       # CRUD for sets
-│           └── sync.ts       # Push/pull sync with Supabase
+│           └── templates.ts  # Workout templates (save, apply, delete)
 │
 ├── client/
 │   ├── package.json
+│   ├── capacitor.config.ts   # Capacitor native build config
 │   ├── tsconfig.json
-│   ├── tsconfig.node.json
 │   ├── vite.config.ts
 │   ├── index.html
 │   ├── .env.example
 │   └── src/
 │       ├── main.tsx
-│       ├── App.tsx           # Router and auth state
+│       ├── App.tsx           # Router, auth state, UnitsProvider
 │       ├── index.css         # Global dark theme styles
 │       ├── lib/
-│       │   ├── api.ts        # Typed fetch wrappers for all API endpoints
+│       │   ├── api.ts        # API layer — Supabase direct (web) or SQLite (native)
 │       │   ├── auth.ts       # Supabase auth helpers
-│       │   └── supabase.ts   # Supabase client instance
+│       │   ├── supabase.ts   # Supabase client instance
+│       │   ├── sqlite.ts     # Capacitor SQLite init (native only)
+│       │   ├── migrations.ts # Native SQLite migration runner
+│       │   ├── sync.ts       # Supabase sync helpers (native only)
+│       │   └── audio.ts      # Web Audio API tone generator for tempo timer
+│       ├── hooks/
+│       │   ├── useTempoTimer.ts  # Tempo phase cycling and countdown logic
+│       │   ├── useDialog.ts      # Promise-based in-app confirm/prompt dialogs
+│       │   └── useNetwork.ts     # Online/offline detection
+│       ├── contexts/
+│       │   └── UnitsContext.tsx  # Metric/imperial preference (localStorage)
 │       ├── components/
-│       │   ├── Nav.tsx       # Top navigation bar
-│       │   ├── ExercisePicker.tsx  # Modal for selecting exercises
-│       │   └── SetRow.tsx    # Inline editable set row
+│       │   ├── Nav.tsx           # Top navigation bar
+│       │   ├── Dialog.tsx        # In-app modal (replaces window.confirm/prompt)
+│       │   ├── ExercisePicker.tsx
+│       │   ├── TemplatePicker.tsx
+│       │   ├── SetRow.tsx        # Inline editable set row
+│       │   └── OfflineBanner.tsx
 │       └── pages/
-│           ├── Login.tsx         # Sign in / register
-│           ├── Dashboard.tsx     # Overview + recent workouts + sync
-│           ├── WorkoutHistory.tsx # Full workout list with delete
-│           ├── NewWorkout.tsx    # Create a new workout session
-│           ├── WorkoutDetail.tsx # Add exercises and log sets
-│           └── ExerciseLibrary.tsx # Browse and create custom exercises
+│           ├── Login.tsx
+│           ├── Dashboard.tsx        # Overview, recent workouts, stats
+│           ├── WorkoutHistory.tsx   # Full workout list
+│           ├── NewWorkout.tsx       # Create a new workout session
+│           ├── WorkoutDetail.tsx    # Log exercises, sets, and tempo timer
+│           ├── ExerciseLibrary.tsx  # Browse and create custom exercises
+│           ├── Templates.tsx        # Workout templates
+│           ├── Charts.tsx           # Historical progress charts
+│           └── Settings.tsx         # Metric/imperial toggle
 │
 └── supabase/
-    └── migrations/
-        ├── 001_initial_schema.sql  # Postgres schema + RLS
-        └── 002_seed_exercises.sql  # Built-in exercise seed data
+    └── migrations/              # Postgres schema + RLS policies (for Supabase SQL Editor)
 ```
 
 ---
 
 ## API Endpoints
 
+All endpoints (except `/api/health`) require a `Authorization: Bearer <token>` header. Requests are scoped to the authenticated user — no user can access another user's data.
+
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/health` | Health check |
-| GET | `/api/workouts?user_id=` | List workouts for a user |
+| GET | `/api/workouts` | List workouts for the authenticated user |
 | GET | `/api/workouts/:id` | Get workout with exercises and sets |
 | POST | `/api/workouts` | Create a new workout |
 | PUT | `/api/workouts/:id` | Update a workout |
 | DELETE | `/api/workouts/:id` | Delete a workout |
 | POST | `/api/workouts/:id/exercises` | Add an exercise to a workout |
 | DELETE | `/api/workouts/exercises/:weId` | Remove an exercise from a workout |
-| GET | `/api/exercises?user_id=` | List all exercises |
+| PATCH | `/api/workouts/exercises/:weId/metadata` | Update exercise metadata (e.g. tempo) |
+| GET | `/api/exercises` | List global + user's custom exercises |
 | POST | `/api/exercises` | Create a custom exercise |
 | PUT | `/api/exercises/:id` | Update a custom exercise |
 | DELETE | `/api/exercises/:id` | Delete a custom exercise |
@@ -182,19 +204,36 @@ workout-logger/
 | POST | `/api/sets` | Log a new set |
 | PUT | `/api/sets/:id` | Update a set |
 | DELETE | `/api/sets/:id` | Delete a set |
-| POST | `/api/sync/push` | Push local changes to Supabase |
-| POST | `/api/sync/pull` | Pull data from Supabase into local DB |
+| GET | `/api/templates` | List workout templates |
+| POST | `/api/templates/from-workout/:workoutId` | Save a workout as a template |
+| POST | `/api/templates/:id/apply` | Create a workout from a template |
+| DELETE | `/api/templates/:id` | Delete a template |
 
 ---
 
 ## Features
 
-- **Offline-first**: All data is stored locally in SQLite. The app works without an internet connection.
-- **Cloud sync**: Push local changes to Supabase and pull remote data on demand from the Dashboard.
-- **Exercise library**: 30 built-in global exercises across 6 muscle groups. Add your own custom exercises.
+- **Exercise library**: 30+ built-in global exercises across muscle groups. Add custom exercises.
 - **Set logging**: Track weight, reps, rest time, and RPE per set. Values auto-save on blur.
-- **Sync status badges**: Each workout shows whether it has been synced to the cloud.
+- **Tempo timer**: Per-exercise eccentric/pause/concentric/pause timer with distinct audio tones per phase. Tempo persists to the database.
+- **Workout templates**: Save any workout as a reusable template and apply it to create a new session.
+- **Historical charts**: Visualize progress over time per exercise.
+- **Metric / imperial**: Toggle weight units in Settings; preference persists in localStorage.
 - **Auth**: Email/password authentication via Supabase Auth.
+- **Native mobile**: Capacitor builds for iOS and Android with local SQLite storage.
+
+---
+
+## Native Mobile Build (Capacitor)
+
+```bash
+cd client
+npm run build
+npx cap sync
+npx cap open ios      # or android
+```
+
+On native, the app uses a local SQLite database instead of the Express API. Migrations run automatically on first launch.
 
 ---
 

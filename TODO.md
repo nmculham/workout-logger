@@ -22,4 +22,4 @@
 - [x] Create missing server migration script — reads SQL files from migrations/, tracks applied migrations in schema_migrations table
 
 ## Docs
-- [ ] Update README (still references SQLite/better-sqlite3; no mention of Capacitor or mobile build)
+- [x] Update README — reflects Postgres/Supabase stack, Capacitor, current project structure, all API routes and features
