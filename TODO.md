@@ -17,7 +17,7 @@
 - [x] Add JWT verification to Express routes — added requireAuth middleware using supabase.auth.getUser(), all routes now scope to req.userId
 
 ## Missing / Incomplete
-- [ ] Implement `PUT /api/exercises/:id` route (documented in README but not built)
+- [x] Implement `PUT /api/exercises/:id` route — implemented during security rewrite (scoped to user_id, is_global = false)
 - [x] Add try/catch error handling to all Express route handlers — added asyncHandler wrapper + global error handler in index.ts
 - [ ] Create missing server migration script (`server/package.json` references `src/db/migrate.ts` which doesn't exist)
 
