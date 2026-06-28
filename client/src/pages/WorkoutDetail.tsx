@@ -6,6 +6,7 @@ import ExercisePicker from '../components/ExercisePicker';
 import SetRow, { type SetRowHandle } from '../components/SetRow';
 import Dialog from '../components/Dialog';
 import { useDialog } from '../hooks/useDialog';
+import { useUnits } from '../contexts/UnitsContext';
 import { useTempoTimer, PHASE_LABELS } from '../hooks/useTempoTimer';
 import type { Tempo } from '../hooks/useTempoTimer';
 
@@ -31,6 +32,7 @@ export default function WorkoutDetail({ user }: Props) {
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [templateError, setTemplateError] = useState<string | null>(null);
   const { dialogConfig, confirm, prompt } = useDialog();
+  const { weightLabel } = useUnits();
   const setRowRefs = useRef<Map<string, SetRowHandle>>(new Map());
   const [tempoState, setTempoState] = useState<Record<string, ExerciseTempo>>({});
   const [activeTimerWeId, setActiveTimerWeId] = useState<string | null>(null);
@@ -240,7 +242,7 @@ export default function WorkoutDetail({ user }: Props) {
               {sets.length > 0 && (
                 <div style={{ marginBottom: 12 }}>
                   <div style={{ display: 'grid', gridTemplateColumns: '32px 1fr 1fr 1fr 1fr 80px', gap: 8, fontSize: 11, color: '#666', marginBottom: 6 }}>
-                    <span>#</span><span>Weight</span><span>Reps</span><span>Rest (s)</span><span>RPE</span><span></span>
+                    <span>#</span><span>Weight ({weightLabel})</span><span>Reps</span><span>Rest (s)</span><span>RPE</span><span></span>
                   </div>
                   {sets.map(s => (
                     <SetRow

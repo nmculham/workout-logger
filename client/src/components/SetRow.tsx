@@ -1,4 +1,5 @@
 import { useState, useRef, forwardRef, useImperativeHandle } from 'react';
+import { useUnits } from '../contexts/UnitsContext';
 
 interface SetRowProps {
   set: any;
@@ -11,6 +12,7 @@ export interface SetRowHandle {
 }
 
 const SetRow = forwardRef<SetRowHandle, SetRowProps>(function SetRow({ set, onUpdate, onDelete }, ref) {
+  const { weightLabel } = useUnits();
   const [weight, setWeight] = useState(set.weight ?? '');
   const [reps, setReps] = useState(set.reps ?? '');
   const [rest, setRest] = useState(set.rest_time_seconds ?? '');
@@ -50,7 +52,7 @@ const SetRow = forwardRef<SetRowHandle, SetRowProps>(function SetRow({ set, onUp
           value={weight}
           onChange={e => { dirty.current = true; setWeight(e.target.value); }}
           onBlur={save}
-          placeholder="kg"
+          placeholder={weightLabel}
           style={inputStyle}
           min={0}
           step={0.5}
