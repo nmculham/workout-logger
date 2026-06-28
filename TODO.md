@@ -7,7 +7,7 @@
 - [ ] Dashboard "show more" / pagination past the first 5 workouts
 
 ## Bugs
-- [ ] Investigate: reps and weights from previous workouts not being saved
+- [x] Investigate: reps and weights from previous workouts not being saved — fixed by removing metadata passthrough from SetRow.save() which was crashing silently after Express/pg stored it as "[object Object]"
 - [x] Investigate: logging in on one browser does not show results visible in a different browser with the same user — fixed by bypassing Express/Render and using Supabase directly on web
 - [ ] Fix sync pull — `syncPull` doesn't fetch `workout_exercises` or `sets`, so synced workouts arrive empty on a new device (native only)
 - [ ] Fix native sync queue — set/exercise changes within a workout are never queued for Supabase push on Capacitor (native)
