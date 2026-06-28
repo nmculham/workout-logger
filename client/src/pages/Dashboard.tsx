@@ -7,12 +7,13 @@ interface Props { user: User; }
 
 export default function Dashboard({ user }: Props) {
   const [workouts, setWorkouts] = useState<any[]>([]);
+  const [shown, setShown] = useState(5);
 
   useEffect(() => {
     api.getWorkouts(user.id).then(setWorkouts).catch(console.error);
   }, [user.id]);
 
-  const recent = workouts.slice(0, 5);
+  const recent = workouts.slice(0, shown);
   const thisWeek = workouts.filter(w => {
     const d = new Date(w.date);
     const now = new Date();
@@ -59,6 +60,15 @@ export default function Dashboard({ user }: Props) {
             ))}
           </div>
       }
+      {workouts.length > shown && (
+        <button
+          className="btn-ghost"
+          style={{ marginTop: 10, width: '100%' }}
+          onClick={() => setShown(s => s + 5)}
+        >
+          Show more
+        </button>
+      )}
     </div>
   );
 }
