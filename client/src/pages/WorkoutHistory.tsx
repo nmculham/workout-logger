@@ -2,12 +2,15 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { User } from '@supabase/supabase-js';
 import { api } from '../lib/api';
+import Dialog from '../components/Dialog';
+import { useDialog } from '../hooks/useDialog';
 
 interface Props { user: User; }
 
 export default function WorkoutHistory({ user }: Props) {
   const [workouts, setWorkouts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const { dialogConfig, confirm } = useDialog();
 
   useEffect(() => {
     api.getWorkouts(user.id)
@@ -17,7 +20,7 @@ export default function WorkoutHistory({ user }: Props) {
 
   async function handleDelete(id: string, e: React.MouseEvent) {
     e.preventDefault();
-    if (!confirm('Delete this workout?')) return;
+    if (!await confirm('Delete this workout?')) return;
     await api.deleteWorkout(id);
     setWorkouts(prev => prev.filter(w => w.id !== id));
   }
@@ -56,6 +59,7 @@ export default function WorkoutHistory({ user }: Props) {
             ))}
           </div>
       }
+      {dialogConfig && <Dialog config={dialogConfig} />}
     </div>
   );
 }

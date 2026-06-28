@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { User } from '@supabase/supabase-js';
 import { api } from '../lib/api';
+import Dialog from '../components/Dialog';
+import { useDialog } from '../hooks/useDialog';
 
 interface Props { user: User; }
 
@@ -9,6 +11,7 @@ export default function Templates({ user }: Props) {
   const navigate = useNavigate();
   const [templates, setTemplates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const { dialogConfig, confirm } = useDialog();
 
   async function load() {
     try {
@@ -22,7 +25,7 @@ export default function Templates({ user }: Props) {
   useEffect(() => { load(); }, [user.id]);
 
   async function handleDelete(id: string, name: string) {
-    if (!confirm(`Delete template "${name}"?`)) return;
+    if (!await confirm(`Delete template "${name}"?`)) return;
     await api.deleteTemplate(id);
     await load();
   }
@@ -77,6 +80,7 @@ export default function Templates({ user }: Props) {
           ))}
         </div>
       )}
+      {dialogConfig && <Dialog config={dialogConfig} />}
     </div>
   );
 }

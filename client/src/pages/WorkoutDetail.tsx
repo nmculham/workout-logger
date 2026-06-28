@@ -4,6 +4,8 @@ import type { User } from '@supabase/supabase-js';
 import { api } from '../lib/api';
 import ExercisePicker from '../components/ExercisePicker';
 import SetRow, { type SetRowHandle } from '../components/SetRow';
+import Dialog from '../components/Dialog';
+import { useDialog } from '../hooks/useDialog';
 import { useTempoTimer, PHASE_LABELS } from '../hooks/useTempoTimer';
 import type { Tempo } from '../hooks/useTempoTimer';
 
@@ -27,6 +29,8 @@ export default function WorkoutDetail({ user }: Props) {
   const [showPicker, setShowPicker] = useState(false);
   const [addingSet, setAddingSet] = useState<string | null>(null);
   const [savingTemplate, setSavingTemplate] = useState(false);
+  const [templateError, setTemplateError] = useState<string | null>(null);
+  const { dialogConfig, confirm, prompt } = useDialog();
   const setRowRefs = useRef<Map<string, SetRowHandle>>(new Map());
   const [tempoState, setTempoState] = useState<Record<string, ExerciseTempo>>({});
   const [activeTimerWeId, setActiveTimerWeId] = useState<string | null>(null);
@@ -106,7 +110,7 @@ export default function WorkoutDetail({ user }: Props) {
   }
 
   async function removeExercise(weId: string) {
-    if (!confirm('Remove this exercise and all its sets?')) return;
+    if (!await confirm('Remove this exercise and all its sets?')) return;
     await api.removeExerciseFromWorkout(weId);
     await load();
   }
@@ -136,14 +140,13 @@ export default function WorkoutDetail({ user }: Props) {
 
   async function saveAsTemplate() {
     if (!workout) return;
-    const name = window.prompt('Template name:', workout.name);
-    if (name === null) return; // cancelled
+    const name = await prompt('Template name:', workout.name);
+    if (name === null) return;
     setSavingTemplate(true);
     try {
       await api.saveAsTemplate(workout.id, name.trim() || workout.name);
-      alert(`Saved as template "${name.trim() || workout.name}"`);
     } catch (err: any) {
-      alert('Failed to save template: ' + err.message);
+      setTemplateError(err.message);
     } finally {
       setSavingTemplate(false);
     }
@@ -275,11 +278,16 @@ export default function WorkoutDetail({ user }: Props) {
       <button
         className="btn-ghost"
         style={{ marginTop: 10, width: '100%' }}
-        onClick={saveAsTemplate}
+        onClick={() => { setTemplateError(null); saveAsTemplate(); }}
         disabled={savingTemplate}
       >
         {savingTemplate ? 'Saving...' : 'Save as Template'}
       </button>
+      {templateError && (
+        <p style={{ color: '#ef4444', fontSize: 13, margin: '6px 0 0', textAlign: 'center' }}>
+          Failed to save template: {templateError}
+        </p>
+      )}
 
       <button
         className="btn-primary"
@@ -296,6 +304,7 @@ export default function WorkoutDetail({ user }: Props) {
           onClose={() => setShowPicker(false)}
         />
       )}
+      {dialogConfig && <Dialog config={dialogConfig} />}
     </div>
   );
 }

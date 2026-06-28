@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { api } from '../lib/api';
+import Dialog from '../components/Dialog';
+import { useDialog } from '../hooks/useDialog';
 
 interface Props { user: User; }
 
@@ -14,6 +16,7 @@ export default function ExerciseLibrary({ user }: Props) {
   const [name, setName] = useState('');
   const [muscleGroup, setMuscleGroup] = useState('');
   const [saving, setSaving] = useState(false);
+  const { dialogConfig, confirm } = useDialog();
 
   async function load() {
     const data = await api.getExercises(user.id);
@@ -33,7 +36,7 @@ export default function ExerciseLibrary({ user }: Props) {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Delete this exercise?')) return;
+    if (!await confirm('Delete this exercise?')) return;
     await api.deleteExercise(id);
     await load();
   }
@@ -111,6 +114,7 @@ export default function ExerciseLibrary({ user }: Props) {
           </div>
         </div>
       ))}
+      {dialogConfig && <Dialog config={dialogConfig} />}
     </div>
   );
 }
