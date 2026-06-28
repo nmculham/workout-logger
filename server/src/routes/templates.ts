@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { getPool } from '../db/postgres';
+import { asyncHandler } from '../middleware/asyncHandler';
 
 const router = Router();
 
 // GET /api/templates
-router.get('/', async (req, res) => {
+router.get('/', asyncHandler(async (req, res) => {
   const { rows } = await getPool().query(`
     SELECT wt.*,
       COUNT(DISTINCT te.id) as exercise_count,
@@ -18,10 +19,10 @@ router.get('/', async (req, res) => {
     ORDER BY wt.created_at DESC
   `, [req.userId]);
   res.json(rows);
-});
+}));
 
 // POST /api/templates/from-workout/:workoutId
-router.post('/from-workout/:workoutId', async (req, res) => {
+router.post('/from-workout/:workoutId', asyncHandler(async (req, res) => {
   const { name } = req.body;
   const pool = getPool();
 
@@ -61,19 +62,19 @@ router.post('/from-workout/:workoutId', async (req, res) => {
   }
 
   res.status(201).json({ id: templateId });
-});
+}));
 
 // DELETE /api/templates/:id
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', asyncHandler(async (req, res) => {
   await getPool().query(
     'DELETE FROM workout_templates WHERE id = $1 AND user_id = $2',
     [req.params.id, req.userId]
   );
   res.json({ ok: true });
-});
+}));
 
 // POST /api/templates/:id/apply
-router.post('/:id/apply', async (req, res) => {
+router.post('/:id/apply', asyncHandler(async (req, res) => {
   const { name, date } = req.body;
   if (!date) return res.status(400).json({ error: 'date required' });
   const pool = getPool();
@@ -114,6 +115,6 @@ router.post('/:id/apply', async (req, res) => {
   }
 
   res.status(201).json({ id: workoutId });
-});
+}));
 
 export default router;

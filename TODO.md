@@ -18,7 +18,7 @@
 
 ## Missing / Incomplete
 - [ ] Implement `PUT /api/exercises/:id` route (documented in README but not built)
-- [ ] Add try/catch error handling to all Express route handlers
+- [x] Add try/catch error handling to all Express route handlers — added asyncHandler wrapper + global error handler in index.ts
 - [ ] Create missing server migration script (`server/package.json` references `src/db/migrate.ts` which doesn't exist)
 
 ## Docs

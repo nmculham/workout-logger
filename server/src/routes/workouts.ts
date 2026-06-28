@@ -1,20 +1,21 @@
 import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { getPool } from '../db/postgres';
+import { asyncHandler } from '../middleware/asyncHandler';
 
 const router = Router();
 
 // GET /api/workouts
-router.get('/', async (req, res) => {
+router.get('/', asyncHandler(async (req, res) => {
   const { rows } = await getPool().query(
     'SELECT * FROM workouts WHERE user_id = $1 ORDER BY date DESC',
     [req.userId]
   );
   res.json(rows);
-});
+}));
 
 // GET /api/workouts/:id
-router.get('/:id', async (req, res) => {
+router.get('/:id', asyncHandler(async (req, res) => {
   const pool = getPool();
   const { rows: [workout] } = await pool.query(
     'SELECT * FROM workouts WHERE id = $1 AND user_id = $2',
@@ -39,10 +40,10 @@ router.get('/:id', async (req, res) => {
     : [];
 
   res.json({ ...workout, exercises: workoutExercises, sets });
-});
+}));
 
 // POST /api/workouts
-router.post('/', async (req, res) => {
+router.post('/', asyncHandler(async (req, res) => {
   const { name, date, notes } = req.body;
   if (!name || !date) return res.status(400).json({ error: 'name and date required' });
   const id = uuidv4();
@@ -51,10 +52,10 @@ router.post('/', async (req, res) => {
     [id, req.userId, name, date, notes || null]
   );
   res.status(201).json({ id });
-});
+}));
 
 // PUT /api/workouts/:id
-router.put('/:id', async (req, res) => {
+router.put('/:id', asyncHandler(async (req, res) => {
   const { name, date, notes } = req.body;
   const { rowCount } = await getPool().query(
     'UPDATE workouts SET name = $1, date = $2, notes = $3, updated_at = now() WHERE id = $4 AND user_id = $5',
@@ -62,19 +63,19 @@ router.put('/:id', async (req, res) => {
   );
   if (!rowCount) return res.status(404).json({ error: 'Not found' });
   res.json({ ok: true });
-});
+}));
 
 // DELETE /api/workouts/:id
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', asyncHandler(async (req, res) => {
   await getPool().query(
     'DELETE FROM workouts WHERE id = $1 AND user_id = $2',
     [req.params.id, req.userId]
   );
   res.json({ ok: true });
-});
+}));
 
 // POST /api/workouts/:id/exercises
-router.post('/:id/exercises', async (req, res) => {
+router.post('/:id/exercises', asyncHandler(async (req, res) => {
   const pool = getPool();
   const { rows: [workout] } = await pool.query(
     'SELECT id FROM workouts WHERE id = $1 AND user_id = $2',
@@ -89,22 +90,21 @@ router.post('/:id/exercises', async (req, res) => {
     [id, req.params.id, exercise_id, order ?? 0]
   );
   res.status(201).json({ id });
-});
+}));
 
 // DELETE /api/workouts/exercises/:weId
-router.delete('/exercises/:weId', async (req, res) => {
-  const pool = getPool();
-  const { rowCount } = await pool.query(`
+router.delete('/exercises/:weId', asyncHandler(async (req, res) => {
+  const { rowCount } = await getPool().query(`
     DELETE FROM workout_exercises we
     USING workouts w
     WHERE we.id = $1 AND we.workout_id = w.id AND w.user_id = $2
   `, [req.params.weId, req.userId]);
   if (!rowCount) return res.status(404).json({ error: 'Not found' });
   res.json({ ok: true });
-});
+}));
 
 // PATCH /api/workouts/exercises/:weId/metadata
-router.patch('/exercises/:weId/metadata', async (req, res) => {
+router.patch('/exercises/:weId/metadata', asyncHandler(async (req, res) => {
   const { metadata } = req.body;
   const { rowCount } = await getPool().query(`
     UPDATE workout_exercises we
@@ -114,6 +114,6 @@ router.patch('/exercises/:weId/metadata', async (req, res) => {
   `, [JSON.stringify(metadata ?? {}), req.params.weId, req.userId]);
   if (!rowCount) return res.status(404).json({ error: 'Not found' });
   res.json({ ok: true });
-});
+}));
 
 export default router;

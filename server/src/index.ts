@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { type Request, type Response, type NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { initDb } from './db/postgres';
@@ -24,6 +24,12 @@ app.use('/api/workouts', workoutsRouter);
 app.use('/api/exercises', exercisesRouter);
 app.use('/api/sets', setsRouter);
 app.use('/api/templates', templatesRouter);
+
+// Global error handler — catches anything forwarded via next(err)
+app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  console.error(err);
+  res.status(500).json({ error: 'Internal server error' });
+});
 
 initDb().then(() => {
   app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));

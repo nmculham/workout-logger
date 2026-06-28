@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { getPool } from '../db/postgres';
+import { asyncHandler } from '../middleware/asyncHandler';
 
 const router = Router();
 
 // GET /api/sets?workout_exercise_id=...
-router.get('/', async (req, res) => {
+router.get('/', asyncHandler(async (req, res) => {
   const { workout_exercise_id } = req.query;
   if (!workout_exercise_id) return res.status(400).json({ error: 'workout_exercise_id required' });
   const { rows } = await getPool().query(`
@@ -16,10 +17,10 @@ router.get('/', async (req, res) => {
     ORDER BY s.set_number
   `, [workout_exercise_id, req.userId]);
   res.json(rows);
-});
+}));
 
 // POST /api/sets
-router.post('/', async (req, res) => {
+router.post('/', asyncHandler(async (req, res) => {
   const { workout_exercise_id, set_number, reps, weight, rest_time_seconds, rpe, notes, metadata } = req.body;
   if (!workout_exercise_id || set_number == null) {
     return res.status(400).json({ error: 'workout_exercise_id and set_number required' });
@@ -38,10 +39,10 @@ router.post('/', async (req, res) => {
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
   `, [id, workout_exercise_id, set_number, reps ?? null, weight ?? null, rest_time_seconds ?? null, rpe ?? null, notes ?? null, metadata ?? {}]);
   res.status(201).json({ id });
-});
+}));
 
 // PUT /api/sets/:id
-router.put('/:id', async (req, res) => {
+router.put('/:id', asyncHandler(async (req, res) => {
   const { reps, weight, rest_time_seconds, rpe, notes, metadata } = req.body;
   const { rowCount } = await getPool().query(`
     UPDATE sets s SET
@@ -53,16 +54,16 @@ router.put('/:id', async (req, res) => {
   `, [reps ?? null, weight ?? null, rest_time_seconds ?? null, rpe ?? null, notes ?? null, metadata ?? {}, req.params.id, req.userId]);
   if (!rowCount) return res.status(404).json({ error: 'Not found' });
   res.json({ ok: true });
-});
+}));
 
 // DELETE /api/sets/:id
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', asyncHandler(async (req, res) => {
   await getPool().query(`
     DELETE FROM sets s
     USING workout_exercises we, workouts w
     WHERE s.id = $1 AND s.workout_exercise_id = we.id AND we.workout_id = w.id AND w.user_id = $2
   `, [req.params.id, req.userId]);
   res.json({ ok: true });
-});
+}));
 
 export default router;
