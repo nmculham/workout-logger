@@ -51,5 +51,30 @@ export async function syncPull(userId: string): Promise<{ exercises: number; wor
     }
   }
 
+  const workoutIds = workouts?.map(w => w.id) ?? [];
+  if (workoutIds.length) {
+    const { data: wes } = await supabase.from('workout_exercises').select('*').in('workout_id', workoutIds);
+    if (wes) {
+      for (const we of wes) {
+        await sqliteRun(
+          'INSERT OR REPLACE INTO workout_exercises (id, workout_id, exercise_id, "order", metadata, created_at) VALUES (?,?,?,?,?,?)',
+          [we.id, we.workout_id, we.exercise_id, we.order, JSON.stringify(we.metadata ?? {}), we.created_at]
+        );
+      }
+      const weIds = wes.map(we => we.id);
+      if (weIds.length) {
+        const { data: sets } = await supabase.from('sets').select('*').in('workout_exercise_id', weIds);
+        if (sets) {
+          for (const s of sets) {
+            await sqliteRun(
+              'INSERT OR REPLACE INTO sets (id, workout_exercise_id, set_number, reps, weight, rest_time_seconds, rpe, notes, metadata, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
+              [s.id, s.workout_exercise_id, s.set_number, s.reps ?? null, s.weight ?? null, s.rest_time_seconds ?? null, s.rpe ?? null, s.notes ?? null, JSON.stringify(s.metadata ?? {}), s.created_at, s.updated_at]
+            );
+          }
+        }
+      }
+    }
+  }
+
   return { exercises: exercises?.length ?? 0, workouts: workouts?.length ?? 0 };
 }

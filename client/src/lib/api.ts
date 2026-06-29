@@ -122,6 +122,7 @@ export const api = {
       const id = genId();
       await nr('INSERT INTO workout_exercises (id, workout_id, exercise_id, "order") VALUES (?, ?, ?, ?)',
         [id, workoutId, body.exercise_id, body.order ?? 0]);
+      await nativeQueueSync('workout_exercises', id, 'INSERT', { id, workout_id: workoutId, exercise_id: body.exercise_id, order: body.order ?? 0 });
       return { id };
     }
     const id = genId();
@@ -135,6 +136,7 @@ export const api = {
   removeExerciseFromWorkout: async (weId: string): Promise<any> => {
     if (isNative) {
       await nr('DELETE FROM workout_exercises WHERE id = ?', [weId]);
+      await nativeQueueSync('workout_exercises', weId, 'DELETE', {});
       return { ok: true };
     }
     const { error } = await supabase.from('workout_exercises').delete().eq('id', weId);
@@ -145,6 +147,7 @@ export const api = {
   updateWorkoutExerciseMeta: async (weId: string, metadata: object): Promise<any> => {
     if (isNative) {
       await nr("UPDATE workout_exercises SET metadata = ? WHERE id = ?", [JSON.stringify(metadata), weId]);
+      await nativeQueueSync('workout_exercises', weId, 'UPDATE', { metadata });
       return { ok: true };
     }
     const { error } = await supabase.from('workout_exercises').update({ metadata: metadata as any }).eq('id', weId);
@@ -206,6 +209,7 @@ export const api = {
         'INSERT INTO sets (id, workout_exercise_id, set_number, reps, weight, rest_time_seconds, rpe, notes, metadata) VALUES (?,?,?,?,?,?,?,?,?)',
         [id, workout_exercise_id, set_number, reps ?? null, weight ?? null, rest_time_seconds ?? null, rpe ?? null, notes ?? null, JSON.stringify(metadata ?? {})]
       );
+      await nativeQueueSync('sets', id, 'INSERT', { id, workout_exercise_id, set_number, reps: reps ?? null, weight: weight ?? null, rest_time_seconds: rest_time_seconds ?? null, rpe: rpe ?? null, notes: notes ?? null, metadata: metadata ?? {} });
       return { id };
     }
     const id = genId();
@@ -221,6 +225,7 @@ export const api = {
         "UPDATE sets SET reps = ?, weight = ?, rest_time_seconds = ?, rpe = ?, notes = ?, metadata = ?, updated_at = datetime('now') WHERE id = ?",
         [reps ?? null, weight ?? null, rest_time_seconds ?? null, rpe ?? null, notes ?? null, JSON.stringify(metadata ?? {}), id]
       );
+      await nativeQueueSync('sets', id, 'UPDATE', body);
       return { ok: true };
     }
     const { error } = await supabase.from('sets').update(body).eq('id', id);
@@ -231,6 +236,7 @@ export const api = {
   deleteSet: async (id: string): Promise<any> => {
     if (isNative) {
       await nr('DELETE FROM sets WHERE id = ?', [id]);
+      await nativeQueueSync('sets', id, 'DELETE', {});
       return { ok: true };
     }
     const { error } = await supabase.from('sets').delete().eq('id', id);
