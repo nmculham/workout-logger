@@ -17,7 +17,7 @@ INSERT OR IGNORE INTO exercises (id, name, muscle_group, is_global) VALUES
   ('ex-016', 'Dumbbell Fly', 'Chest', 1),
   ('ex-017', 'Cable Crossover', 'Chest', 1),
   ('ex-018', 'Push-Up', 'Chest', 1),
-  ('ex-019', 'Overhead Press', 'Shoulders', 1),
+  ('ex-019', 'Overhead Barbell Press', 'Shoulders', 1),
   ('ex-020', 'Lateral Raise', 'Shoulders', 1),
   ('ex-021', 'Arnold Press', 'Shoulders', 1),
   ('ex-022', 'Rear Delt Fly', 'Shoulders', 1),

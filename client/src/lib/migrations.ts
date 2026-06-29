@@ -119,7 +119,7 @@ export const migrations: Migration[] = [
         ('ex-047', 'Pec Deck', 'Chest', 1),
         ('ex-048', 'Chest Dip', 'Chest', 1),
         ('ex-049', 'Cable Fly', 'Chest', 1),
-        ('ex-050', 'Dumbbell Shoulder Press', 'Shoulders', 1),
+        ('ex-050', 'Overhead Dumbbell Press', 'Shoulders', 1),
         ('ex-051', 'Front Raise', 'Shoulders', 1),
         ('ex-052', 'Cable Lateral Raise', 'Shoulders', 1),
         ('ex-053', 'Upright Row', 'Shoulders', 1),
@@ -142,5 +142,12 @@ export const migrations: Migration[] = [
   {
     name: '004_workout_exercise_metadata',
     sql: `ALTER TABLE workout_exercises ADD COLUMN metadata TEXT DEFAULT '{}';`,
+  },
+  {
+    name: '005_rename_overhead_press',
+    sql: `
+      UPDATE exercises SET name = 'Overhead Barbell Press' WHERE id = 'ex-019' AND is_global = 1;
+      UPDATE exercises SET name = 'Overhead Dumbbell Press' WHERE id = 'ex-050' AND is_global = 1;
+    `,
   },
 ];
