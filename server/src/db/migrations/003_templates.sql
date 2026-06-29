@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS workout_templates (
   user_id TEXT NOT NULL,
   name TEXT NOT NULL,
   notes TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS template_exercises (
@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS template_exercises (
   template_id TEXT NOT NULL REFERENCES workout_templates(id) ON DELETE CASCADE,
   exercise_id TEXT NOT NULL REFERENCES exercises(id),
   "order" INTEGER NOT NULL DEFAULT 0,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS template_sets (
@@ -23,6 +23,6 @@ CREATE TABLE IF NOT EXISTS template_sets (
   rest_time_seconds INTEGER,
   rpe REAL,
   notes TEXT,
-  metadata TEXT DEFAULT '{}',
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  metadata JSONB DEFAULT '{}',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
