@@ -18,6 +18,13 @@ async function nr(sql: string, params?: any[]): Promise<void> {
   return sqliteRun(sql, params);
 }
 
+// SQLite stores metadata as TEXT; Postgres wants a JSON object. Legacy rows may
+// hold junk like "[object Object]", so fall back to {} rather than throwing.
+function parseMetadata(raw: any): object {
+  if (raw && typeof raw === 'object') return raw;
+  try { return JSON.parse(raw || '{}'); } catch { return {}; }
+}
+
 async function nativeQueueSync(table: string, recordId: string, op: string, payload: object) {
   await nr(
     'INSERT INTO sync_queue (table_name, record_id, operation, payload) VALUES (?, ?, ?, ?)',
@@ -277,15 +284,25 @@ export const api = {
       const templateId = genId();
       await nr('INSERT INTO workout_templates (id, user_id, name, notes) VALUES (?, ?, ?, ?)',
         [templateId, workout[0].user_id, name, workout[0].notes || null]);
+      await nativeQueueSync('workout_templates', templateId, 'INSERT',
+        { id: templateId, user_id: workout[0].user_id, name, notes: workout[0].notes || null });
       const wes = await nq('SELECT * FROM workout_exercises WHERE workout_id = ? ORDER BY "order"', [workoutId]);
       for (const we of wes) {
         const teId = genId();
         await nr('INSERT INTO template_exercises (id, template_id, exercise_id, "order") VALUES (?, ?, ?, ?)',
           [teId, templateId, we.exercise_id, we.order]);
+        await nativeQueueSync('template_exercises', teId, 'INSERT',
+          { id: teId, template_id: templateId, exercise_id: we.exercise_id, order: we.order });
         const sets = await nq('SELECT * FROM sets WHERE workout_exercise_id = ? ORDER BY set_number', [we.id]);
         for (const s of sets) {
+          const tsId = genId();
           await nr('INSERT INTO template_sets (id, template_exercise_id, set_number, reps, weight, rest_time_seconds, rpe, notes, metadata) VALUES (?,?,?,?,?,?,?,?,?)',
-            [genId(), teId, s.set_number, s.reps ?? null, s.weight ?? null, s.rest_time_seconds ?? null, s.rpe ?? null, s.notes ?? null, s.metadata || '{}']);
+            [tsId, teId, s.set_number, s.reps ?? null, s.weight ?? null, s.rest_time_seconds ?? null, s.rpe ?? null, s.notes ?? null, s.metadata || '{}']);
+          await nativeQueueSync('template_sets', tsId, 'INSERT', {
+            id: tsId, template_exercise_id: teId, set_number: s.set_number,
+            reps: s.reps ?? null, weight: s.weight ?? null, rest_time_seconds: s.rest_time_seconds ?? null,
+            rpe: s.rpe ?? null, notes: s.notes ?? null, metadata: parseMetadata(s.metadata),
+          });
         }
       }
       return { id: templateId };
@@ -321,7 +338,11 @@ export const api = {
 
   deleteTemplate: async (id: string): Promise<any> => {
     if (isNative) {
+      // Delete children explicitly — FK cascades aren't guaranteed to be on in SQLite.
+      await nr('DELETE FROM template_sets WHERE template_exercise_id IN (SELECT id FROM template_exercises WHERE template_id = ?)', [id]);
+      await nr('DELETE FROM template_exercises WHERE template_id = ?', [id]);
       await nr('DELETE FROM workout_templates WHERE id = ?', [id]);
+      await nativeQueueSync('workout_templates', id, 'DELETE', {});
       return { ok: true };
     }
     const { error } = await supabase.from('workout_templates').delete().eq('id', id);
@@ -336,16 +357,24 @@ export const api = {
       const workoutId = genId();
       await nr('INSERT INTO workouts (id, user_id, name, date, notes) VALUES (?, ?, ?, ?, ?)',
         [workoutId, body.user_id, body.name, body.date, tmpl[0].notes || null]);
-      await nativeQueueSync('workouts', workoutId, 'INSERT', { id: workoutId, ...body });
+      await nativeQueueSync('workouts', workoutId, 'INSERT', { id: workoutId, ...body, notes: tmpl[0].notes || null });
       const tes = await nq('SELECT * FROM template_exercises WHERE template_id = ? ORDER BY "order"', [templateId]);
       for (const te of tes) {
         const weId = genId();
         await nr('INSERT INTO workout_exercises (id, workout_id, exercise_id, "order") VALUES (?, ?, ?, ?)',
           [weId, workoutId, te.exercise_id, te.order]);
+        await nativeQueueSync('workout_exercises', weId, 'INSERT',
+          { id: weId, workout_id: workoutId, exercise_id: te.exercise_id, order: te.order });
         const tsets = await nq('SELECT * FROM template_sets WHERE template_exercise_id = ? ORDER BY set_number', [te.id]);
         for (const ts of tsets) {
+          const sId = genId();
           await nr('INSERT INTO sets (id, workout_exercise_id, set_number, reps, weight, rest_time_seconds, rpe, notes, metadata) VALUES (?,?,?,?,?,?,?,?,?)',
-            [genId(), weId, ts.set_number, ts.reps ?? null, ts.weight ?? null, ts.rest_time_seconds ?? null, ts.rpe ?? null, ts.notes ?? null, ts.metadata || '{}']);
+            [sId, weId, ts.set_number, ts.reps ?? null, ts.weight ?? null, ts.rest_time_seconds ?? null, ts.rpe ?? null, ts.notes ?? null, ts.metadata || '{}']);
+          await nativeQueueSync('sets', sId, 'INSERT', {
+            id: sId, workout_exercise_id: weId, set_number: ts.set_number,
+            reps: ts.reps ?? null, weight: ts.weight ?? null, rest_time_seconds: ts.rest_time_seconds ?? null,
+            rpe: ts.rpe ?? null, notes: ts.notes ?? null, metadata: parseMetadata(ts.metadata),
+          });
         }
       }
       return { id: workoutId };
@@ -388,11 +417,11 @@ export const api = {
     return { pushed: 0 };
   },
 
-  syncPull: async (userId: string): Promise<{ exercises: number; workouts: number }> => {
+  syncPull: async (userId: string): Promise<{ exercises: number; workouts: number; templates: number }> => {
     if (isNative) {
       const { syncPull } = await import('./sync');
       return syncPull(userId);
     }
-    return { exercises: 0, workouts: 0 };
+    return { exercises: 0, workouts: 0, templates: 0 };
   },
 };

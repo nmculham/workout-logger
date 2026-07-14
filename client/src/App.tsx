@@ -76,10 +76,17 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Initial sync on login (native): push queued changes, then pull latest,
+  // so workouts and templates created on other devices show up here.
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform() || !user) return;
+    api.syncPush().then(() => api.syncPull(user.id)).catch(console.error);
+  }, [user?.id]);
+
   // Auto-sync when coming back online
   useEffect(() => {
     if (isOnline && !prevOnline.current && user) {
-      api.syncPush().catch(console.error);
+      api.syncPush().then(() => api.syncPull(user.id)).catch(console.error);
     }
     prevOnline.current = isOnline;
   }, [isOnline, user]);

@@ -30,7 +30,7 @@ export async function syncPush(): Promise<{ pushed: number; remaining: number }>
   return { pushed, remaining: queue.length - pushed };
 }
 
-export async function syncPull(userId: string): Promise<{ exercises: number; workouts: number }> {
+export async function syncPull(userId: string): Promise<{ exercises: number; workouts: number; templates: number }> {
   const { data: exercises } = await supabase.from('exercises').select('*');
   if (exercises) {
     for (const e of exercises) {
@@ -76,5 +76,39 @@ export async function syncPull(userId: string): Promise<{ exercises: number; wor
     }
   }
 
-  return { exercises: exercises?.length ?? 0, workouts: workouts?.length ?? 0 };
+  const { data: templates } = await supabase.from('workout_templates').select('*').eq('user_id', userId);
+  if (templates) {
+    for (const t of templates) {
+      await sqliteRun(
+        'INSERT OR REPLACE INTO workout_templates (id, user_id, name, notes, created_at) VALUES (?,?,?,?,?)',
+        [t.id, t.user_id, t.name, t.notes ?? null, t.created_at]
+      );
+    }
+    const templateIds = templates.map(t => t.id);
+    if (templateIds.length) {
+      const { data: tes } = await supabase.from('template_exercises').select('*').in('template_id', templateIds);
+      if (tes) {
+        for (const te of tes) {
+          await sqliteRun(
+            'INSERT OR REPLACE INTO template_exercises (id, template_id, exercise_id, "order", created_at) VALUES (?,?,?,?,?)',
+            [te.id, te.template_id, te.exercise_id, te.order, te.created_at]
+          );
+        }
+        const teIds = tes.map(te => te.id);
+        if (teIds.length) {
+          const { data: tsets } = await supabase.from('template_sets').select('*').in('template_exercise_id', teIds);
+          if (tsets) {
+            for (const ts of tsets) {
+              await sqliteRun(
+                'INSERT OR REPLACE INTO template_sets (id, template_exercise_id, set_number, reps, weight, rest_time_seconds, rpe, notes, metadata, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)',
+                [ts.id, ts.template_exercise_id, ts.set_number, ts.reps ?? null, ts.weight ?? null, ts.rest_time_seconds ?? null, ts.rpe ?? null, ts.notes ?? null, JSON.stringify(ts.metadata ?? {}), ts.created_at]
+              );
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return { exercises: exercises?.length ?? 0, workouts: workouts?.length ?? 0, templates: templates?.length ?? 0 };
 }

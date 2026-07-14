@@ -12,6 +12,7 @@
 - [x] Fix sync pull — `syncPull` now fetches `workout_exercises` and `sets` for all pulled workouts (native only)
 - [x] Fix native sync queue — addExercise, removeExercise, updateExerciseMeta, createSet, updateSet, deleteSet now all queue to sync_queue (native only)
 - [x] Replace `window.prompt()` / `alert()` in WorkoutDetail — fixed across all pages with Dialog component + useDialog hook
+- [x] Fix starting a workout from a template on native — SQLite schema was missing the template tables entirely (every template query threw "no such table"); added migration 006, template pull in syncPull, sync-queueing for template/apply mutations, and an initial push+pull sync on login
 
 ## Security
 - [x] Add JWT verification to Express routes — added requireAuth middleware using supabase.auth.getUser(), all routes now scope to req.userId

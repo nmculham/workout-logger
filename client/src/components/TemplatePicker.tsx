@@ -10,9 +10,13 @@ interface Props {
 export default function TemplatePicker({ userId, onSelect, onClose }: Props) {
   const [templates, setTemplates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    api.getTemplates(userId).then(t => { setTemplates(t); setLoading(false); });
+    api.getTemplates(userId)
+      .then(t => setTemplates(t))
+      .catch(err => setError(err?.message ?? 'Failed to load templates'))
+      .finally(() => setLoading(false));
   }, [userId]);
 
   return (
@@ -30,6 +34,8 @@ export default function TemplatePicker({ userId, onSelect, onClose }: Props) {
         </div>
         {loading ? (
           <p style={{ color: '#666' }}>Loading...</p>
+        ) : error ? (
+          <p style={{ color: '#ef4444', textAlign: 'center', marginTop: 32 }}>{error}</p>
         ) : templates.length === 0 ? (
           <p style={{ color: '#666', textAlign: 'center', marginTop: 32 }}>No templates saved yet.</p>
         ) : (

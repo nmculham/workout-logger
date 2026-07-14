@@ -3,8 +3,14 @@ import { migrations } from './migrations';
 
 // Lazy-loaded so web builds don't fail
 let db: any = null;
+let initPromise: Promise<void> | null = null;
 
-export async function initSQLiteDb(): Promise<void> {
+export function initSQLiteDb(): Promise<void> {
+  if (!initPromise) initPromise = doInit();
+  return initPromise;
+}
+
+async function doInit(): Promise<void> {
   if (!Capacitor.isNativePlatform()) return;
 
   const { CapacitorSQLite, SQLiteConnection } = await import('@capacitor-community/sqlite');
@@ -46,12 +52,14 @@ async function runMigrations(): Promise<void> {
 }
 
 export async function sqliteQuery(sql: string, params?: any[]): Promise<any[]> {
+  if (!db) await initSQLiteDb();
   if (!db) throw new Error('SQLite not initialized');
   const result = await db.query(sql, params ?? []);
   return result.values ?? [];
 }
 
 export async function sqliteRun(sql: string, params?: any[]): Promise<void> {
+  if (!db) await initSQLiteDb();
   if (!db) throw new Error('SQLite not initialized');
   await db.run(sql, params ?? []);
 }
