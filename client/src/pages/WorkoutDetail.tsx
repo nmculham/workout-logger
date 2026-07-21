@@ -144,9 +144,18 @@ export default function WorkoutDetail({ user }: Props) {
     if (!workout) return;
     const name = await prompt('Template name:', workout.name);
     if (name === null) return;
+    const finalName = name.trim() || workout.name;
+
+    const templates = await api.getTemplates(user.id);
+    const existing = templates.filter(
+      (t: any) => t.name.trim().toLowerCase() === finalName.toLowerCase()
+    );
+    if (existing.length && !await confirm(`A template named "${finalName}" already exists. Overwrite it?`)) return;
+
     setSavingTemplate(true);
     try {
-      await api.saveAsTemplate(workout.id, name.trim() || workout.name);
+      for (const t of existing) await api.deleteTemplate(t.id);
+      await api.saveAsTemplate(workout.id, finalName);
     } catch (err: any) {
       setTemplateError(err.message);
     } finally {
