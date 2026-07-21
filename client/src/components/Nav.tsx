@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import type { User } from '@supabase/supabase-js';
 import { signOut } from '../lib/auth';
@@ -5,18 +6,37 @@ import { signOut } from '../lib/auth';
 interface Props { user: User; }
 
 export default function Nav({ user }: Props) {
+  const [open, setOpen] = useState(false);
+  const close = () => setOpen(false);
+  const linkClass = ({ isActive }: { isActive: boolean }) => (isActive ? 'active' : '');
+
   return (
     <nav>
       <span className="logo">WL</span>
-      <NavLink to="/" className={({ isActive }) => isActive ? 'active' : ''}>Dashboard</NavLink>
-      <NavLink to="/history" className={({ isActive }) => isActive ? 'active' : ''}>History</NavLink>
-      <NavLink to="/exercises" className={({ isActive }) => isActive ? 'active' : ''}>Exercises</NavLink>
-      <NavLink to="/templates" className={({ isActive }) => isActive ? 'active' : ''}>Templates</NavLink>
-      <NavLink to="/charts" className={({ isActive }) => isActive ? 'active' : ''}>Charts</NavLink>
-      <NavLink to="/settings" className={({ isActive }) => isActive ? 'active' : ''}>Settings</NavLink>
-      <div className="spacer" />
-      <span style={{ fontSize: 13, color: '#666' }}>{user.email}</span>
-      <button className="btn-ghost" style={{ padding: '6px 12px' }} onClick={signOut}>Sign out</button>
+
+      <button
+        className="nav-toggle"
+        aria-label="Menu"
+        aria-expanded={open}
+        onClick={() => setOpen(o => !o)}
+      >
+        {open ? '✕' : '☰'}
+      </button>
+
+      <div className={`nav-links ${open ? 'open' : ''}`}>
+        <NavLink to="/" className={linkClass} onClick={close}>Dashboard</NavLink>
+        <NavLink to="/history" className={linkClass} onClick={close}>History</NavLink>
+        <NavLink to="/exercises" className={linkClass} onClick={close}>Exercises</NavLink>
+        <NavLink to="/templates" className={linkClass} onClick={close}>Templates</NavLink>
+        <NavLink to="/charts" className={linkClass} onClick={close}>Charts</NavLink>
+        <NavLink to="/settings" className={linkClass} onClick={close}>Settings</NavLink>
+        <div className="nav-user">
+          <span className="nav-email">{user.email}</span>
+          <button className="btn-ghost" style={{ padding: '6px 12px' }} onClick={() => { close(); signOut(); }}>
+            Sign out
+          </button>
+        </div>
+      </div>
     </nav>
   );
 }
