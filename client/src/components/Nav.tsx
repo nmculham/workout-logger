@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { NavLink } from 'react-router-dom';
 import type { User } from '@supabase/supabase-js';
 import { signOut } from '../lib/auth';
@@ -9,9 +9,20 @@ export default function Nav({ user }: Props) {
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
   const linkClass = ({ isActive }: { isActive: boolean }) => (isActive ? 'active' : '');
+  const navRef = useRef<HTMLElement>(null);
+
+  // Close the mobile menu when tapping/clicking anywhere outside the nav.
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (navRef.current && !navRef.current.contains(e.target as Node)) close();
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [open]);
 
   return (
-    <nav>
+    <nav ref={navRef}>
       <span className="logo">WL</span>
 
       <button
