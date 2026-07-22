@@ -71,6 +71,13 @@ export default function Templates({ user }: Props) {
               </button>
               <button
                 className="btn-ghost"
+                style={{ fontSize: 12, padding: '6px 10px', borderColor: '#333' }}
+                onClick={() => navigate(`/templates/${t.id}`)}
+              >
+                Edit
+              </button>
+              <button
+                className="btn-ghost"
                 style={{ fontSize: 12, padding: '6px 10px', color: '#ef4444', borderColor: '#333' }}
                 onClick={() => handleDelete(t.id, t.name)}
               >

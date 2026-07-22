@@ -14,6 +14,7 @@ import WorkoutHistory from './pages/WorkoutHistory';
 import WorkoutDetail from './pages/WorkoutDetail';
 import ExerciseLibrary from './pages/ExerciseLibrary';
 import Templates from './pages/Templates';
+import TemplateDetail from './pages/TemplateDetail';
 import Charts from './pages/Charts';
 import Settings from './pages/Settings';
 import { UnitsProvider } from './contexts/UnitsContext';
@@ -107,6 +108,7 @@ export default function App() {
           <Route path="/history" element={user ? <WorkoutHistory user={user} /> : <Navigate to="/login" replace />} />
           <Route path="/exercises" element={user ? <ExerciseLibrary user={user} /> : <Navigate to="/login" replace />} />
           <Route path="/templates" element={user ? <Templates user={user} /> : <Navigate to="/login" replace />} />
+          <Route path="/templates/:id" element={user ? <TemplateDetail user={user} /> : <Navigate to="/login" replace />} />
           <Route path="/charts" element={user ? <Charts user={user} /> : <Navigate to="/login" replace />} />
           <Route path="/settings" element={user ? <Settings /> : <Navigate to="/login" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />

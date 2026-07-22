@@ -277,6 +277,130 @@ export const api = {
     }));
   },
 
+  getTemplate: async (id: string): Promise<any> => {
+    if (isNative) {
+      const rows = await nq('SELECT * FROM workout_templates WHERE id = ?', [id]);
+      if (!rows.length) return null;
+      const exercises = await nq(`
+        SELECT te.*, e.name as exercise_name, e.muscle_group
+        FROM template_exercises te
+        JOIN exercises e ON e.id = te.exercise_id
+        WHERE te.template_id = ?
+        ORDER BY te."order"
+      `, [id]);
+      const teIds = exercises.map((te: any) => te.id);
+      const sets = teIds.length
+        ? await nq(
+            `SELECT * FROM template_sets WHERE template_exercise_id IN (${teIds.map(() => '?').join(',')}) ORDER BY set_number`,
+            teIds
+          )
+        : [];
+      return { ...rows[0], exercises, sets };
+    }
+    const { data: template, error: tErr } = await supabase.from('workout_templates').select('*').eq('id', id).single();
+    if (tErr) sbErr(tErr);
+    const { data: teRows, error: teErr } = await supabase
+      .from('template_exercises')
+      .select('*, exercises(name, muscle_group)')
+      .eq('template_id', id)
+      .order('order');
+    if (teErr) sbErr(teErr);
+    const exercises = (teRows ?? []).map(({ exercises: ex, ...te }: any) => ({
+      ...te,
+      exercise_name: ex?.name,
+      muscle_group: ex?.muscle_group,
+    }));
+    const teIds = exercises.map((te: any) => te.id);
+    const { data: sets } = teIds.length
+      ? await supabase.from('template_sets').select('*').in('template_exercise_id', teIds).order('set_number')
+      : { data: [] };
+    return { ...template, exercises, sets: sets ?? [] };
+  },
+
+  updateTemplate: async (id: string, body: { name: string; notes?: string }): Promise<any> => {
+    if (isNative) {
+      await nr('UPDATE workout_templates SET name = ?, notes = ? WHERE id = ?', [body.name, body.notes || null, id]);
+      await nativeQueueSync('workout_templates', id, 'UPDATE', { name: body.name, notes: body.notes || null });
+      return { ok: true };
+    }
+    const { error } = await supabase.from('workout_templates').update({ name: body.name, notes: body.notes ?? null }).eq('id', id);
+    if (error) sbErr(error);
+    return { ok: true };
+  },
+
+  addExerciseToTemplate: async (templateId: string, body: { exercise_id: string; order?: number }): Promise<{ id: string }> => {
+    if (isNative) {
+      const id = genId();
+      await nr('INSERT INTO template_exercises (id, template_id, exercise_id, "order") VALUES (?, ?, ?, ?)',
+        [id, templateId, body.exercise_id, body.order ?? 0]);
+      await nativeQueueSync('template_exercises', id, 'INSERT', { id, template_id: templateId, exercise_id: body.exercise_id, order: body.order ?? 0 });
+      return { id };
+    }
+    const id = genId();
+    const { error } = await supabase.from('template_exercises').insert({
+      id, template_id: templateId, exercise_id: body.exercise_id, order: body.order ?? 0,
+    });
+    if (error) sbErr(error);
+    return { id };
+  },
+
+  removeTemplateExercise: async (teId: string): Promise<any> => {
+    if (isNative) {
+      // Delete children explicitly — FK cascades aren't guaranteed to be on in SQLite.
+      await nr('DELETE FROM template_sets WHERE template_exercise_id = ?', [teId]);
+      await nr('DELETE FROM template_exercises WHERE id = ?', [teId]);
+      await nativeQueueSync('template_exercises', teId, 'DELETE', {});
+      return { ok: true };
+    }
+    const { error } = await supabase.from('template_exercises').delete().eq('id', teId);
+    if (error) sbErr(error);
+    return { ok: true };
+  },
+
+  createTemplateSet: async (body: { template_exercise_id: string; set_number: number; [key: string]: any }): Promise<{ id: string }> => {
+    if (isNative) {
+      const id = genId();
+      const { template_exercise_id, set_number, reps, weight, rest_time_seconds, rpe, notes, metadata } = body;
+      await nr(
+        'INSERT INTO template_sets (id, template_exercise_id, set_number, reps, weight, rest_time_seconds, rpe, notes, metadata) VALUES (?,?,?,?,?,?,?,?,?)',
+        [id, template_exercise_id, set_number, reps ?? null, weight ?? null, rest_time_seconds ?? null, rpe ?? null, notes ?? null, JSON.stringify(metadata ?? {})]
+      );
+      await nativeQueueSync('template_sets', id, 'INSERT', { id, template_exercise_id, set_number, reps: reps ?? null, weight: weight ?? null, rest_time_seconds: rest_time_seconds ?? null, rpe: rpe ?? null, notes: notes ?? null, metadata: metadata ?? {} });
+      return { id };
+    }
+    const id = genId();
+    const { error } = await supabase.from('template_sets').insert({ id, ...body });
+    if (error) sbErr(error);
+    return { id };
+  },
+
+  updateTemplateSet: async (id: string, body: { reps?: number; weight?: number; rest_time_seconds?: number; rpe?: number; notes?: string; metadata?: object }): Promise<any> => {
+    if (isNative) {
+      const { reps, weight, rest_time_seconds, rpe, notes, metadata } = body;
+      // template_sets has no updated_at column
+      await nr(
+        'UPDATE template_sets SET reps = ?, weight = ?, rest_time_seconds = ?, rpe = ?, notes = ?, metadata = ? WHERE id = ?',
+        [reps ?? null, weight ?? null, rest_time_seconds ?? null, rpe ?? null, notes ?? null, JSON.stringify(metadata ?? {}), id]
+      );
+      await nativeQueueSync('template_sets', id, 'UPDATE', body);
+      return { ok: true };
+    }
+    const { error } = await supabase.from('template_sets').update(body).eq('id', id);
+    if (error) sbErr(error);
+    return { ok: true };
+  },
+
+  deleteTemplateSet: async (id: string): Promise<any> => {
+    if (isNative) {
+      await nr('DELETE FROM template_sets WHERE id = ?', [id]);
+      await nativeQueueSync('template_sets', id, 'DELETE', {});
+      return { ok: true };
+    }
+    const { error } = await supabase.from('template_sets').delete().eq('id', id);
+    if (error) sbErr(error);
+    return { ok: true };
+  },
+
   saveAsTemplate: async (workoutId: string, name: string): Promise<{ id: string }> => {
     if (isNative) {
       const workout = await nq('SELECT * FROM workouts WHERE id = ?', [workoutId]);
