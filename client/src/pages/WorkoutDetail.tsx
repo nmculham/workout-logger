@@ -140,6 +140,15 @@ export default function WorkoutDetail({ user }: Props) {
     await load();
   }
 
+  async function editDate() {
+    if (!workout) return;
+    const current = String(workout.date).slice(0, 10);
+    const next = await prompt('Workout date:', current, 'date');
+    if (next === null || next === current || !next) return;
+    setWorkout({ ...workout, date: next });
+    await api.updateWorkout(workout.id, { name: workout.name, date: next, notes: workout.notes });
+  }
+
   async function saveAsTemplate() {
     if (!workout) return;
     const name = await prompt('Template name:', workout.name);
@@ -177,9 +186,15 @@ export default function WorkoutDetail({ user }: Props) {
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 8 }}>
         <div style={{ flex: 1 }}>
           <h1 style={{ margin: 0 }}>{workout.name}</h1>
-          <p style={{ color: '#666', margin: '4px 0 0', fontSize: 14 }}>
+          <button
+            className="btn-ghost"
+            onClick={editDate}
+            style={{ color: '#666', padding: 0, border: 'none', background: 'none', margin: '4px 0 0', fontSize: 14, cursor: 'pointer' }}
+            title="Edit date"
+          >
             {new Date(workout.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}
-          </p>
+            <span style={{ marginLeft: 6, fontSize: 12 }}>✎</span>
+          </button>
           {workout.notes && <p style={{ color: '#a0a0a0', fontSize: 13, marginTop: 8 }}>{workout.notes}</p>}
         </div>
       </div>

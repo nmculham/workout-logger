@@ -4,6 +4,7 @@ export interface DialogConfig {
   type: 'confirm' | 'prompt';
   message: string;
   defaultValue?: string;
+  inputType?: 'text' | 'date';
   onConfirm: (value: string) => void;
   onCancel: () => void;
 }
@@ -35,6 +36,7 @@ export default function Dialog({ config }: { config: DialogConfig }) {
         {config.type === 'prompt' && (
           <input
             ref={inputRef}
+            type={config.inputType ?? 'text'}
             value={value}
             onChange={e => setValue(e.target.value)}
             onKeyDown={handleKeyDown}

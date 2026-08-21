@@ -15,12 +15,13 @@ export function useDialog() {
     });
   }
 
-  function prompt(message: string, defaultValue = ''): Promise<string | null> {
+  function prompt(message: string, defaultValue = '', inputType: 'text' | 'date' = 'text'): Promise<string | null> {
     return new Promise(resolve => {
       setConfig({
         type: 'prompt',
         message,
         defaultValue,
+        inputType,
         onConfirm: (value) => { setConfig(null); resolve(value); },
         onCancel: () => { setConfig(null); resolve(null); },
       });
