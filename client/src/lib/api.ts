@@ -151,6 +151,17 @@ export const api = {
     return { ok: true };
   },
 
+  updateWorkoutExerciseOrder: async (weId: string, order: number): Promise<any> => {
+    if (isNative) {
+      await nr('UPDATE workout_exercises SET "order" = ? WHERE id = ?', [order, weId]);
+      await nativeQueueSync('workout_exercises', weId, 'UPDATE', { order });
+      return { ok: true };
+    }
+    const { error } = await supabase.from('workout_exercises').update({ order }).eq('id', weId);
+    if (error) sbErr(error);
+    return { ok: true };
+  },
+
   updateWorkoutExerciseMeta: async (weId: string, metadata: object): Promise<any> => {
     if (isNative) {
       await nr("UPDATE workout_exercises SET metadata = ? WHERE id = ?", [JSON.stringify(metadata), weId]);

@@ -111,6 +111,23 @@ export default function WorkoutDetail({ user }: Props) {
     await load();
   }
 
+  async function moveExercise(weId: string, direction: -1 | 1) {
+    const list: any[] = [...(workout?.exercises ?? [])];
+    const i = list.findIndex(we => we.id === weId);
+    const j = i + direction;
+    if (i === -1 || j < 0 || j >= list.length) return;
+    // Swap the two rows' order values and their positions in the array.
+    const a = list[i], b = list[j];
+    const aOrder = a.order, bOrder = b.order;
+    list[i] = { ...b, order: aOrder };
+    list[j] = { ...a, order: bOrder };
+    setWorkout({ ...workout, exercises: list });
+    await Promise.all([
+      api.updateWorkoutExerciseOrder(a.id, bOrder),
+      api.updateWorkoutExerciseOrder(b.id, aOrder),
+    ]);
+  }
+
   async function removeExercise(weId: string) {
     if (!await confirm('Remove this exercise and all its sets?')) return;
     await api.removeExerciseFromWorkout(weId);
@@ -200,7 +217,7 @@ export default function WorkoutDetail({ user }: Props) {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20, marginTop: 24 }}>
-        {exerciseList.map((we: any) => {
+        {exerciseList.map((we: any, index: number) => {
           const sets = allSets.filter(s => s.workout_exercise_id === we.id);
           const tempo = tempoState[we.id];
           const isTimerRunning = activeTimerWeId === we.id && timer.state !== null;
@@ -208,6 +225,26 @@ export default function WorkoutDetail({ user }: Props) {
           return (
             <div key={we.id} className="card">
               <div style={{ display: 'flex', alignItems: 'center', marginBottom: tempo?.enabled ? 8 : 12 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', marginRight: 8 }}>
+                  <button
+                    className="btn-ghost"
+                    style={{ fontSize: 11, padding: '0 6px', lineHeight: 1.4, opacity: index === 0 ? 0.3 : 1 }}
+                    onClick={() => moveExercise(we.id, -1)}
+                    disabled={index === 0}
+                    title="Move up"
+                  >
+                    ▲
+                  </button>
+                  <button
+                    className="btn-ghost"
+                    style={{ fontSize: 11, padding: '0 6px', lineHeight: 1.4, opacity: index === exerciseList.length - 1 ? 0.3 : 1 }}
+                    onClick={() => moveExercise(we.id, 1)}
+                    disabled={index === exerciseList.length - 1}
+                    title="Move down"
+                  >
+                    ▼
+                  </button>
+                </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600 }}>{we.exercise_name}</div>
                   <div style={{ fontSize: 12, color: '#666' }}>{we.muscle_group}</div>
